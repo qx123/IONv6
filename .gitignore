@@ -31,3 +31,18 @@
 # Debug files
 *.dSYM/
 *.su
+
+# ION ignore
+arch*
+/tests/*
+*.pdf
+tutorial*
+autom4te.cache/
+mingw-setup
+/doc/*
+ION-LTP-configuration*
+Makefile.winion
+/ams/*
+*.bat
+/unreleased-doc/*
+/demos/*
