@@ -37,7 +37,6 @@ arch*
 /tests/*
 autom4te.cache/
 mingw-setup
-/doc/*
 Makefile.winion
 *.bat
 /unreleased-doc/*
