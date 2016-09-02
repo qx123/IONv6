@@ -35,12 +35,9 @@
 # ION ignore
 arch*
 /tests/*
-*.pdf
-tutorial*
 autom4te.cache/
 mingw-setup
 /doc/*
-ION-LTP-configuration*
 Makefile.winion
 *.bat
 /unreleased-doc/*
