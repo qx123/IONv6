@@ -42,7 +42,6 @@ mingw-setup
 /doc/*
 ION-LTP-configuration*
 Makefile.winion
-/ams/*
 *.bat
 /unreleased-doc/*
 /demos/*
