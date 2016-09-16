@@ -2398,93 +2398,100 @@ char	*addressToString(struct in_addr address, char *buffer)
 #endif	/*	ION_NO_DNS						*/
 
 #if (defined(FSWLAN) || !(defined(ION_NO_DNS)))
-int	parseSocketSpec(char *socketSpec, unsigned short *portNbr,
-		unsigned int *ipAddress)
+int parseSocketSpec(char *socketSpec, unsigned short *portNbr,
+        unsigned char *ipAddress)
 {
-	char		*delimiter;
-	char		*hostname;
-	char		hostnameBuf[MAXHOSTNAMELEN + 1];
-	unsigned int	i4;
+	// TODO: check  ip and port
+	// TODO: parse domain name
+	
+	int domain;
+	domain = (*socketSpec == '[') ? AF_INET6 : AF_INET;
 
-	CHKERR(portNbr);
-	CHKERR(ipAddress);
-	*portNbr = 0;			/*	Use default port nbr.	*/
-	*ipAddress = INADDR_ANY;	/*	Use local host address.	*/
+	char *delimiter;
+	unsigned short port;
+	unsigned char ipBuf[sizeof(struct in6_addr)];
 
-	if (socketSpec == NULL || *socketSpec == '\0')
+	if (domain == AF_INET)
 	{
-		return 0;		/*	Use defaults.		*/
-	}
+		*portNbr = 1113;	/* use default port nbr */
+		*ipAddress = INADDR_ANY;	/*	Use local host address.	*/
 
-	delimiter = strchr(socketSpec, ':');
-	if (delimiter)
-	{
-		*delimiter = '\0';	/*	Delimit host name.	*/
-	}
-
-	/*	First figure out the IP address.  @ is local host.	*/
-
-	hostname = socketSpec;
-	if (strlen(hostname) != 0)
-	{
-		if (strcmp(hostname, "0.0.0.0") == 0)
+		if (socketSpec == NULL || *socketSpec == '\0')
 		{
-			*ipAddress = INADDR_ANY;
+			return domain;		/*	Use defaults.		*/
 		}
-		else
+
+		delimiter = strchr(socketSpec, ':');
+		if (delimiter)
 		{
-			if (strcmp(hostname, "@") == 0)
+			*delimiter = '\0';	/*	Delimit host name.	*/
+		}
+		inet_pton(domain, socketSpec, ipAddress);
+		
+		if (delimiter == NULL)		/*	No port number.		*/
+		{
+			return domain;		/*	All done.		*/
+		}
+
+		*delimiter = ':';
+		port = atoi(delimiter+1);
+		if (port != 0)
+		{
+			if (port < 1024 || port > 65535)
 			{
-				getNameOfHost(hostnameBuf, sizeof hostnameBuf);
-				hostname = hostnameBuf;
-			}
-
-			i4 = getInternetAddress(hostname);
-			if (i4 < 1)	/*	Invalid hostname.	*/
-			{
-				writeMemoNote("[?] Can't get IP address",
-						hostname);
-				if (delimiter)
-				{
-					/*	Back out the parsing
-					 *	of the socket spec.	*/
-
-					*delimiter = ':';
-				}
-
+				writeMemoNote("[?] Invalid port number.", utoa(port));
 				return -1;
 			}
 			else
 			{
-				*ipAddress = i4;
+				*portNbr = port;
 			}
 		}
+		return domain;
 	}
-
-	/*	Now pick out the port number, if requested.		*/
-
-	if (delimiter == NULL)		/*	No port number.		*/
+	else if (domain == AF_INET6)
 	{
-		return 0;		/*	All done.		*/
-	}
-
-	*delimiter = ':';		/*	Back out the parsing.	*/
-	i4 = atoi(delimiter + 1);	/*	Get port number.	*/
-	if (i4 != 0)
-	{
-		if (i4 < 1024 || i4 > 65535)
+		int ix;
+		*portNbr = 1113;	/* use default port nbr */
+		struct in6_addr sa = in6addr_any;
+		for (i=0; i<16; i++)
+			ipAddress[i] = sa.s6_addr[i];	/*	Use local host address.	*/
+		
+		if (socketSpec == NULL || *socketSpec == '\0')
 		{
-			writeMemoNote("[?] Invalid port number.", utoa(i4));
-			return -1;
+			return domain;		/*	Use defaults.		*/
 		}
-		else
-		{
-			*portNbr = i4;
-		}
-	}
 
-	return 0;
+		delimiter = strchr(socketSpec, ']');
+		if (delimiter)
+		{
+			*delimiter = '\0';	/*	Delimit host name.	*/
+		}
+
+		inet_pton(domain, socketSpec, ipAddress);
+
+		*delimiter = ']';
+		char *delim;
+		delim = strchr(delimiter, ':');
+		if (delim == NULL)
+			return domain;
+		port = atoi(delimiter+1);
+		if (port != 0)
+		{
+			if (port < 1024 || port > 65535)
+			{
+				writeMemoNote("[?] Invalid port number.", utoa(port));
+				return -1;
+			}
+			else
+			{
+				*portNbr = port;
+			}
+		}
+		return domain;
+	}
 }
+
 #else
 int	parseSocketSpec(char *socketSpec, unsigned short *portNbr,
 		unsigned int *ipAddress)
