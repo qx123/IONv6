@@ -2447,14 +2447,13 @@ int parseSocketSpec(char *socketSpec, unsigned short *portNbr,
 				*portNbr = port;
 			}
 		}
-		return domain;
 	}
 	else if (domain == AF_INET6)
 	{
 		int ix;
 		*portNbr = 1113;	/* use default port nbr */
 		struct in6_addr sa = in6addr_any;
-		for (i=0; i<16; i++)
+		for (ix=0; i<16; i++)
 			ipAddress[i] = sa.s6_addr[i];	/*	Use local host address.	*/
 		
 		if (socketSpec == NULL || *socketSpec == '\0')
@@ -2488,13 +2487,13 @@ int parseSocketSpec(char *socketSpec, unsigned short *portNbr,
 				*portNbr = port;
 			}
 		}
-		return domain;
 	}
+    return domain;
 }
 
 #else
 int	parseSocketSpec(char *socketSpec, unsigned short *portNbr,
-		unsigned int *ipAddress)
+		unsigned char *ipAddress)
 {
 	return 0;
 }
