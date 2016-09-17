@@ -2454,7 +2454,7 @@ int parseSocketSpec(char *socketSpec, unsigned short *portNbr,
 		*portNbr = 1113;	/* use default port nbr */
 		struct in6_addr sa = in6addr_any;
 		for (ix=0; ix<16; ix++)
-			ipAddress[i] = sa.s6_addr[i];	/*	Use local host address.	*/
+			ipAddress[ix] = sa.s6_addr[ix];	/*	Use local host address.	*/
 		
 		if (socketSpec == NULL || *socketSpec == '\0')
 		{
