@@ -2409,7 +2409,7 @@ int parseSocketSpec(char *socketSpec, unsigned short *portNbr,
 
 	char *delimiter;
 	unsigned short port;
-	unsigned char ipBuf[sizeof(struct in6_addr)];
+	// unsigned char ipBuf[sizeof(struct in6_addr)];
 
 	if (domain == AF_INET)
 	{
