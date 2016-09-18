@@ -3319,6 +3319,7 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
     // TODO: print connect address
 
 	unsigned short		portNbr;
+    unsigned int        hostNbr, *pHostNbr;
     unsigned char       hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
 	char			dottedString[16];
@@ -3328,6 +3329,7 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
 	CHKERR(socketSpec);
 	CHKERR(sock);
     memset((char *) &socketName, 0, sizeof socketName);
+    pHostNbr = &hostNbr;
 
 	*sock = -1;		/*	Default value.			*/
 	if (*socketSpec == '\0')
@@ -3337,10 +3339,11 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
 
 	/*	Construct socket name.					*/
 
-	domain = parseSocketSpec(socketSpec, &portNbr, hostaddr);
+	domain = parseSocketSpec(socketSpec, &portNbr, hostAddr);
     if (domain == AF_INET)
     {
         struct sockaddr_in *inetName = (struct sockaddr_in *)&socketName;
+        memcpy((char *) pHostNbr, (char *) hostAddr, 4);
     
         if (hostNbr == 0)
         {
