@@ -3337,7 +3337,7 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
 
 	/*	Construct socket name.					*/
 
-	domain = parseSocketSpec(socketSpec, &portNbr, hostNbr);
+	domain = parseSocketSpec(socketSpec, &portNbr, hostaddr);
     if (domain == AF_INET)
     {
         struct sockaddr_in *inetName = (struct sockaddr_in *)&socketName;
