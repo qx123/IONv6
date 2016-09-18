@@ -779,7 +779,7 @@ extern unsigned int		getAddressOfHost();
 extern char			*addressToString(struct in_addr, char *buf);
 extern int			parseSocketSpec(char *socketSpec,
 					unsigned short *portNbr,
-					unsigned int *ipAddress);
+					unsigned char *ipAddress);
 extern void			printDottedString(unsigned int hostNbr,
 					char *buffer);
 

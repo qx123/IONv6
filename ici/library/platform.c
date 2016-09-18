@@ -3317,14 +3317,16 @@ void	itcp_handleConnectionLoss()
 int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
 {
 	unsigned short		portNbr;
-	unsigned int		hostNbr;
-	struct sockaddr		socketName;
-	struct sockaddr_in	*inetName;
+    unsigned char       hostNbr[sizeof(struct in6_addr)];
+	struct sockaddr_storage		socketName;
 	char			dottedString[16];
 	char			socketTag[32];
+    int domain;
 
 	CHKERR(socketSpec);
 	CHKERR(sock);
+    memset((char *) &socketName, 0, sizeof socketName);
+
 	*sock = -1;		/*	Default value.			*/
 	if (*socketSpec == '\0')
 	{
@@ -3333,28 +3335,47 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
 
 	/*	Construct socket name.					*/
 
-	parseSocketSpec(socketSpec, &portNbr, &hostNbr);
-	if (hostNbr == 0)
-	{
-		putErrmsg("Can't get IP address for host.", socketSpec);
-		return 0;
-	}
+	domain = parseSocketSpec(socketSpec, &portNbr, &hostNbr);
+    if (domain == AF_INET)
+    {
+        struct sockaddr_in *inetName = (struct sockaddr_in *)&socketName;
+    
+        if (hostNbr == 0)
+        {
+            putErrmsg("Can't get IP address for host.", socketSpec);
+            return 0;
+        }
 
-	if (portNbr == 0)
-	{
-		portNbr = defaultPort;
-	}
+        if (portNbr == 0)
+        {
+            portNbr = defaultPort;
+        }
 
-	printDottedString(hostNbr, dottedString);
-	isprintf(socketTag, sizeof socketTag, "%s:%hu", dottedString, portNbr);
-	hostNbr = htonl(hostNbr);
-	portNbr = htons(portNbr);
-	memset((char *) &socketName, 0, sizeof socketName);
-	inetName = (struct sockaddr_in *) &socketName;
-	inetName->sin_family = AF_INET;
-	inetName->sin_port = portNbr;
-	memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &hostNbr, 4);
-	*sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        printDottedString(hostNbr, dottedString);
+        isprintf(socketTag, sizeof socketTag, "%s:%hu", dottedString, portNbr);
+        // hostNbr = htonl(hostNbr);
+        portNbr = htons(portNbr);
+        inetName->sin_family = AF_INET;
+        inetName->sin_port = portNbr;
+        memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &hostNbr, 4);
+        *sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    }
+
+    else if (domain == AF_INET6)
+    {
+        struct sockaddr_in6 *inet6Name = (struct sockaddr_in6 *)&socketName;
+
+        if (portNbr == 0)
+        {
+            portNbr = defaultPort;
+        }
+        portNbr = htons(portNbr);
+        inet6Name->sin6_family = AF_INET6;
+        inet6Name->sin_port = portNbr;
+        memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) &hostNbr, 16);
+        *sock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    }
+
 	if (*sock < 0)
 	{
 		putSysErrmsg("Can't open TCP socket", socketTag);
