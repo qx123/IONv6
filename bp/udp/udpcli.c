@@ -41,6 +41,7 @@ static void	*handleDatagrams(void *parm)
 	int			bundleLength;
 	struct sockaddr_in	fromAddr;
 	unsigned int		hostNbr;
+    unsigned char       *hostAddr;
 	char			hostName[MAXHOSTNAMELEN + 1];
 
 	snooze(1);	/*	Let main thread become interruptible.	*/
@@ -132,9 +133,10 @@ int	main(int argc, char *argv[])
 	ClProtocol		protocol;
 	char			*hostName;
 	unsigned short		portNbr;
-	unsigned int		hostNbr;
+	unsigned int		hostNbr, *pHostNbr;
+    unsigned char       hostAddr[sizeof(struct in6_addr)];
+    int                 domain;
 	struct sockaddr		socketName;
-	struct sockaddr_in	*inetName;
 	socklen_t		nameLength;
 	ReceiverThreadParms	rtp;
 	pthread_t		receiverThread;
@@ -176,7 +178,7 @@ int	main(int argc, char *argv[])
 	sdr_read(sdr, (char *) &protocol, duct.protocol, sizeof(ClProtocol));
 	sdr_exit_xn(sdr);
 	hostName = ductName;
-	if (parseSocketSpec(ductName, &portNbr, &hostNbr) != 0)
+	if ((domain = parseSocketSpec(ductName, &portNbr, &hostAddr)) < 0)
 	{
 		putErrmsg("Can't get IP/port for host.", hostName);
 		return -1;
@@ -188,24 +190,39 @@ int	main(int argc, char *argv[])
 	}
 
 	portNbr = htons(portNbr);
-	hostNbr = htonl(hostNbr);
+	// hostNbr = htonl(hostNbr);
 	rtp.vduct = vduct;
 	memset((char *) &socketName, 0, sizeof socketName);
-	inetName = (struct sockaddr_in *) &socketName;
-	inetName->sin_family = AF_INET;
-	inetName->sin_port = portNbr;
-	memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &hostNbr, 4);
-	rtp.ductSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    pHostNbr = &hostNbr;
+
+    if (domain == AF_INET)
+    {
+        struct sockaddr_in * inetName = (struct sockaddr_in *) &socketName;
+        memcpy((char *) pHostNbr, (char *) hostAddr, 4);
+        inetName->sin_family = AF_INET;
+        inetName->sin_port = portNbr;
+        memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
+        rtp.ductSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        nameLength = sizeof(struct sockaddr_in);
+    }
+    else if (domain == AF_INET6)
+    {
+        struct sockaddr_in6 * inet6Name = (struct sockaddr_in6 *) &socketName;
+        inetName->sin6_family = AF_INET6;
+        inetName->sin6_port = portNbr;
+        memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+        rtp.ductSocket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+        nameLength = sizeof(struct sockaddr_in6);
+    }
 	if (rtp.ductSocket < 0)
 	{
 		putSysErrmsg("Can't open UDP socket", NULL);
 		return -1;
 	}
 
-	nameLength = sizeof(struct sockaddr);
 	if (reUseAddress(rtp.ductSocket)
-	|| bind(rtp.ductSocket, &socketName, nameLength) < 0
-	|| getsockname(rtp.ductSocket, &socketName, &nameLength) < 0)
+	|| bind(rtp.ductSocket, (struct sockaddr *) &socketName, nameLength) < 0
+	|| getsockname(rtp.ductSocket, (struct sockaddr *) &socketName, &nameLength) < 0)
 	{
 		closesocket(rtp.ductSocket);
 		putSysErrmsg("Can't initialize socket", NULL);
@@ -251,8 +268,8 @@ int	main(int argc, char *argv[])
 	fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd >= 0)
 	{
-		oK(isendto(fd, &quit, 1, 0, &socketName,
-				sizeof(struct sockaddr)));
+		oK(isendto(fd, &quit, 1, 0, (struct sockaddr *) &socketName,
+				sizeof(struct sockaddr_storage)));
 		closesocket(fd);
 	}
 
