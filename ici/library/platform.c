@@ -3316,8 +3316,10 @@ void	itcp_handleConnectionLoss()
 
 int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
 {
+    // TODO: print connect address
+
 	unsigned short		portNbr;
-    unsigned char       hostNbr[sizeof(struct in6_addr)];
+    unsigned char       hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
 	char			dottedString[16];
 	char			socketTag[32];
@@ -3335,7 +3337,7 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
 
 	/*	Construct socket name.					*/
 
-	domain = parseSocketSpec(socketSpec, &portNbr, &hostNbr);
+	domain = parseSocketSpec(socketSpec, &portNbr, hostNbr);
     if (domain == AF_INET)
     {
         struct sockaddr_in *inetName = (struct sockaddr_in *)&socketName;
@@ -3351,13 +3353,13 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
             portNbr = defaultPort;
         }
 
-        printDottedString(hostNbr, dottedString);
+        // printDottedString(hostNbr, dottedString);
         isprintf(socketTag, sizeof socketTag, "%s:%hu", dottedString, portNbr);
         // hostNbr = htonl(hostNbr);
         portNbr = htons(portNbr);
         inetName->sin_family = AF_INET;
         inetName->sin_port = portNbr;
-        memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &hostNbr, 4);
+        memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
         *sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     }
 
@@ -3371,8 +3373,8 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
         }
         portNbr = htons(portNbr);
         inet6Name->sin6_family = AF_INET6;
-        inet6Name->sin_port = portNbr;
-        memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) &hostNbr, 16);
+        inet6Name->sin6_port = portNbr;
+        memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
         *sock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
     }
 
@@ -3382,7 +3384,7 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
 		return -1;
 	}
 
-	if (connect(*sock, &socketName, sizeof(struct sockaddr)) < 0)
+	if (connect(*sock, (struct sockaddr *) &socketName, sizeof(struct sockaddr)) < 0)
 	{
 		putSysErrmsg("Can't connect to TCP socket", socketTag);
 		closesocket(*sock);
