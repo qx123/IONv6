@@ -101,9 +101,8 @@ int	main(int argc, char *argv[])
 #endif
 	LtpVdb			*vdb;
 	unsigned short		portNbr = 0;
-	unsigned int		ipAddress = INADDR_ANY;
+	unsigned char 		hostAddr[sizeof(struct sockaddr_in6)] = {0};
 	struct sockaddr		socketName;
-	struct sockaddr_in	*inetName;
 	ReceiverThreadParms	rtp;
 	socklen_t		nameLength;
 	pthread_t		receiverThread;
@@ -131,7 +130,7 @@ int	main(int argc, char *argv[])
 
 	if (endpointSpec)
 	{
-		if(parseSocketSpec(endpointSpec, &portNbr, &ipAddress) != 0)
+		if(domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr) < 0)
 		{
 			putErrmsg("Can't get IP/port for endpointSpec.",
 					endpointSpec);
@@ -145,23 +144,41 @@ int	main(int argc, char *argv[])
 	}
 
 	portNbr = htons(portNbr);
-	ipAddress = htonl(ipAddress);
 	memset((char *) &socketName, 0, sizeof socketName);
-	inetName = (struct sockaddr_in *) &socketName;
-	inetName->sin_family = AF_INET;
-	inetName->sin_port = portNbr;
-	memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &ipAddress, 4);
-	rtp.linkSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (rtp.linkSocket < 0)
+	if (domain == AF_INET)
 	{
-		putSysErrmsg("LSI can't open UDP socket", NULL);
-		return -1;
+		struct sockaddr_in * inetName = (struct sockaddr_in *) &socketName;
+		inetName->sin_family = AF_INET;
+		inetName->sin_port = portNbr;
+		memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &hostAddr, 4);
+		rtp.linkSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (rtp.linkSocket < 0)
+		{
+			putSysErrmsg("LSI can't open UDP socket", NULL);
+			return -1;
+		}
+
+		nameLength = sizeof(struct sockaddr_in);
+	}
+	else if (domain == AF_INET6)
+	{
+		struct sockaddr_in6 * inet6Name = (struct sockaddr_in6 *) &socketName;
+		inet6Name->sin6_family = AF_INET6;
+		inet6Name->sin6_port = portNbr;
+		memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) &hostAddr, 16);
+		rtp.linkSocket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+		if (rtp.linkSocket < 0)
+		{
+			putSysErrmsg("LSI can't open UDP socket", NULL);
+			return -1;
+		}
+
+		nameLength = sizeof(struct sockaddr_in6);
 	}
 
-	nameLength = sizeof(struct sockaddr);
-	if (reUseAddress(rtp.linkSocket)
-	|| bind(rtp.linkSocket, &socketName, nameLength) < 0
-	|| getsockname(rtp.linkSocket, &socketName, &nameLength) < 0)
+		if (reUseAddress(rtp.linkSocket)
+	|| bind(rtp.linkSocket, (struct sockaddr *) &socketName, nameLength) < 0
+	|| getsockname(rtp.linkSocket, (struct sockaddr *) &socketName, &nameLength) < 0)
 	{
 		closesocket(rtp.linkSocket);
 		putSysErrmsg("Can't initialize socket", NULL);
@@ -189,10 +206,23 @@ int	main(int argc, char *argv[])
 	{
 		char	txt[500];
 
-		isprintf(txt, sizeof(txt),
-			"[i] udplsi is running, spec=[%s:%d].", 
-			inet_ntoa(inetName->sin_addr), ntohs(portNbr));
-		writeMemo(txt);
+		if (domain == AF_INET)
+		{
+			isprintf(txt, sizeof(txt),
+				"[i] udplsi is running, spec=[%s:%d].", 
+				inet_ntoa(inetName->sin_addr), ntohs(portNbr));
+			writeMemo(txt);
+		}
+		else if (domain == AF_INET6)
+		{
+			char hostStr[INET6_ADDRSTRLEN];
+			inet_ntop(domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
+
+			isprintf(txt, sizeof(txt),
+				"[i] udplsi is running, spec=[%s:%d].", 
+				hostStr, ntohs(portNbr));
+			writeMemo(txt);
+		}
 	}
 
 	ionPauseMainThread(-1);
@@ -204,10 +234,13 @@ int	main(int argc, char *argv[])
 	/*	Wake up the receiver thread by sending it a 1-byte
 	 *	datagram.						*/
 
-	fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (domain == AF_INET)
+		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    else
+		fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd >= 0)
 	{
-		isendto(fd, &quit, 1, 0, &socketName, sizeof(struct sockaddr));
+		isendto(fd, &quit, 1, 0, (struct sockaddr *) &socketName, sizeof(struct sockaddr));
 		closesocket(fd);
 	}
 
