@@ -50,10 +50,11 @@ int	main(int argc, char *argv[])
 	ClProtocol		protocol;
 	Outflow			outflows[3];
 	int			i;
+    int         domain;
 	unsigned short		portNbr;
-	unsigned int		hostNbr;
-	struct sockaddr		socketName;
-	struct sockaddr_in	*inetName;
+	unsigned int		hostNbr, *pHostNbr;
+    unsigned char       hostAddr[sizeof(struct in6_addr)];
+	struct sockaddr_storage		socketName;
 	Object			bundleZco;
 	BpExtendedCOS		extendedCOS;
 	char			destDuctName[MAX_CL_DUCT_NAME_LEN + 1];
@@ -131,39 +132,68 @@ int	main(int argc, char *argv[])
 			continue;
 		}
 
-		parseSocketSpec(destDuctName, &portNbr, &hostNbr);
+		domain = parseSocketSpec(destDuctName, &portNbr, hostAddr);
 		if (portNbr == 0)
 		{
 			portNbr = BpUdpDefaultPortNbr;
 		}
 
 		portNbr = htons(portNbr);
-		if (hostNbr == 0)	/*	Can't send bundle.	*/
-		{
-			writeMemoNote("[?] Can't get IP address for host",
-					destDuctName);
-			CHKZERO(sdr_begin_xn(sdr));
-			zco_destroy(sdr, bundleZco);
-			if (sdr_end_xn(sdr) < 0)
-			{
-				putErrmsg("Can't destroy ZCO reference.", NULL);
-				sm_SemEnd(udpcloSemaphore(NULL));
-			}
+        memset((char *) &socketName, 0, sizeof socketName);
 
-			continue;
-		}
+        if (domain == AF_INET)
+        {
+            struct sockaddr_in *inetName = (struct sockaddr_in *) &socketName;
+            pHostNbr = &hostNbr;
+            memcpy((char *) pHostNbr, (char *) hostAddr, 4);
+            if (hostNbr == 0)	/*	Can't send bundle.	*/
+            {
+                writeMemoNote("[?] Can't get IP address for host",
+                        destDuctName);
+                CHKZERO(sdr_begin_xn(sdr));
+                zco_destroy(sdr, bundleZco);
+                if (sdr_end_xn(sdr) < 0)
+                {
+                    putErrmsg("Can't destroy ZCO reference.", NULL);
+                    sm_SemEnd(udpcloSemaphore(NULL));
+                }
 
-		hostNbr = htonl(hostNbr);
-		memset((char *) &socketName, 0, sizeof socketName);
-		inetName = (struct sockaddr_in *) &socketName;
-		inetName->sin_family = AF_INET;
-		inetName->sin_port = portNbr;
-		memcpy((char *) &(inetName->sin_addr.s_addr),
-				(char *) &hostNbr, 4);
+                continue;
+            }
+			
+            inetName->sin_family = AF_INET;
+            inetName->sin_port = portNbr;
+            memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
+        }
+        else if (domain == AF_INET6)
+        {
+            struct sockaddr_in6 *inet6Name = (struct sockaddr_in6 *) &socketName;
+            pHostNbr = &hostNbr;
+            memcpy((char *) pHostNbr, (char *) hostAddr, 4);
+            if ((struct in6_addr *) hostAddr == in6addr_any)	/*	Can't send bundle.	*/
+            {
+                writeMemoNote("[?] Can't get IP address for host",
+                        destDuctName);
+                CHKZERO(sdr_begin_xn(sdr));
+                zco_destroy(sdr, bundleZco);
+                if (sdr_end_xn(sdr) < 0)
+                {
+                    putErrmsg("Can't destroy ZCO reference.", NULL);
+                    sm_SemEnd(udpcloSemaphore(NULL));
+                }
+
+                continue;
+            }
+
+            inet6Name->sin6_family = AF_INET6;
+            inet6Name->sin6_port = portNbr;
+            memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+        }
+
 		CHKZERO(sdr_begin_xn(sdr));
 		bundleLength = zco_length(sdr, bundleZco);
 		sdr_exit_xn(sdr);
-		bytesSent = sendBundleByUDP(&socketName, &ductSocket,
+		bytesSent = sendBundleByUDP((struct sockaddr *) &socketName, &ductSocket,
 				bundleLength, bundleZco, buffer);
 		if (bytesSent < bundleLength)
 		{
