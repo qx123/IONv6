@@ -2613,8 +2613,10 @@ int	main(int argc, char *argv[])
 	PsmAddress		vductElt;
 	unsigned short		portNbr;
 	unsigned int		hostNbr;
-	struct sockaddr		socketName;
-	struct sockaddr_in	*inetName;
+	unsigned int		*pHostNbr;
+	unsigned char 		hostAddr[sizeof(struct in6_addr)];
+	struct sockaddr_storage		socketName;
+	int 				domain;
 	ServerThreadParms	stp;
 	socklen_t		nameLength;
 	Lyst			neighbors;
@@ -2636,7 +2638,7 @@ int	main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (parseSocketSpec(ductName, &portNbr, &hostNbr) != 0)
+	if ((domain = parseSocketSpec(ductName, &portNbr, &hostAddr)) < 0)
 	{
 		writeMemoNote("[?] tcpcli: can't get induct IP address",
 				ductName);
@@ -2691,26 +2693,48 @@ int	main(int argc, char *argv[])
 	/*	Now create the server socket.				*/
 
 	portNbr = htons(portNbr);
-	hostNbr = htonl(hostNbr);
 	memset((char *) &(socketName), 0, sizeof(struct sockaddr));
-	inetName = (struct sockaddr_in *) &(socketName);
-	inetName->sin_family = AF_INET;
-	inetName->sin_port = portNbr;
-	memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &hostNbr, 4);
-	stp.serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (stp.serverSocket < 0)
-	{
-		putSysErrmsg("Can't open TCP server socket", NULL);
-		lyst_destroy(backlog);
-		lyst_destroy(neighbors);
-		return 1;
-	}
 
-	nameLength = sizeof(struct sockaddr);
-	if (reUseAddress(stp.serverSocket)
-	|| bind(stp.serverSocket, &socketName, nameLength) < 0
+	if (domain == AF_INET)
+	{
+		struct sockaddr_in *inetName = (struct sockaddr_in *) &(socketName);
+		inetName->sin_family = AF_INET;
+		inetName->sin_port = portNbr;
+		memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
+		stp.serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (stp.serverSocket < 0)
+		{
+			putSysErrmsg("Can't open TCP server socket", NULL);
+			lyst_destroy(backlog);
+			lyst_destroy(neighbors);
+			return 1;
+		}
+
+		nameLength = sizeof(struct sockaddr_in);
+
+	}
+	else if (domain == AF_INET6)
+	{
+		struct sockaddr_in6 *inet6Name = (struct sockaddr_in6 *) &(socketName);
+		inet6Name->sin6_family = AF_INET6;
+		inet6Name->sin6_port = portNbr;
+		memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+		stp.serverSocket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+		if (stp.serverSocket < 0)
+		{
+			putSysErrmsg("Can't open TCP server socket", NULL);
+			lyst_destroy(backlog);
+			lyst_destroy(neighbors);
+			return 1;
+		}
+
+		nameLength = sizeof(struct sockaddr_in6);
+
+	}
+		if (reUseAddress(stp.serverSocket)
+	|| bind(stp.serverSocket, (struct sockaddr *) &socketName, nameLength) < 0
 	|| listen(stp.serverSocket, 5) < 0
-	|| getsockname(stp.serverSocket, &socketName, &nameLength) < 0)
+	|| getsockname(stp.serverSocket, (struct sockaddr *) &socketName, &nameLength) < 0)
 	{
 		closesocket(stp.serverSocket);
 		lyst_destroy(backlog);
