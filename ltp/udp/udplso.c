@@ -180,13 +180,13 @@ int	main(int argc, char *argv[])
 	PsmAddress		vspanElt;
 	unsigned short		portNbr = 0;
 	unsigned int		ipAddress = 0;
+	unsigned char 		bindIpAddr[sizeof(struct sockaddr_in6)] = {0};
+	unsigned char 		hostAddr[sizeof(struct sockaddr_in6)];
+	int 			domain;
 	char			ownHostName[MAXHOSTNAMELEN];
-	struct sockaddr		ownSockName;
-	struct sockaddr_in	*ownInetName;
-	struct sockaddr		bindSockName;
-	struct sockaddr_in	*bindInetName;
-	struct sockaddr		peerSockName;
-	struct sockaddr_in	*peerInetName;
+	struct sockaddr_storage		ownSockName;
+	struct sockaddr_storage		bindSockName;
+	struct sockaddr_storage		peerSockName;
 	socklen_t		nameLength;
 	ReceiverThreadParms	rtp;
 	pthread_t		receiverThread;
@@ -245,7 +245,7 @@ int	main(int argc, char *argv[])
 	/*	All command-line arguments are now validated.  First
 	 *	get peer's socket address.				*/
 
-	parseSocketSpec(endpointSpec, &portNbr, &ipAddress);
+	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
 	if (portNbr == 0)
 	{
 		portNbr = LtpUdpDefaultPortNbr;
@@ -258,44 +258,76 @@ int	main(int argc, char *argv[])
 	}
 
 	portNbr = htons(portNbr);
-	ipAddress = htonl(ipAddress);
 	memset((char *) &peerSockName, 0, sizeof peerSockName);
-	peerInetName = (struct sockaddr_in *) &peerSockName;
-	peerInetName->sin_family = AF_INET;
-	peerInetName->sin_port = portNbr;
-	memcpy((char *) &(peerInetName->sin_addr.s_addr),
-			(char *) &ipAddress, 4);
+	if (domain == AF_INET)
+	{
+		struct sockaddr_in *peerInetName = (struct sockaddr_in *) &peerSockName;
+		peerInetName->sin_family = AF_INET;
+		peerInetName->sin_port = portNbr;
+		memcpy((char *) &(peerInetName->sin_addr.s_addr),
+				(char *) hostAddr, 4);
+	}
+	else if (domain ==AF_INET6)
+	{
+		struct sockaddr_in6 *peerInet6Name = (struct sockaddr_in6 *) &peerSockName;
+		peerInet6Name->sin6_family = AF_INET6;
+		peerInet6Name->sin6_port = portNbr;
+		memcpy((char *) &(peerInet6Name->sin6_addr.s6_addr),
+				(char *) hostAddr, 16); 
+	}
 
 	/*	Now compute own socket address, used when the peer
 	 *	responds to the link service output socket rather
 	 *	than to the advertised link service input socket.	*/
-
-	ipAddress = htonl(INADDR_ANY);
+    
 	memset((char *) &bindSockName, 0, sizeof bindSockName);
-	bindInetName = (struct sockaddr_in *) &bindSockName;
-	bindInetName->sin_family = AF_INET;
-	bindInetName->sin_port = 0;	/*	Let O/S select it.	*/
-	memcpy((char *) &(bindInetName->sin_addr.s_addr),
-			(char *) &ipAddress, 4);
+	if (domain == AF_INET)
+	{
+		struct sockaddr_in *bindInetName = (struct sockaddr_in *) &bindSockName;
+		bindInetName->sin_family = AF_INET;
+		bindInetName->sin_port = 0;	/*	Let O/S select it.	*/
+		memcpy((char *) &(bindInetName->sin_addr.s_addr),
+				(char *) bindIpAddr, 4);
+	}
+	else if (domain == AF_INET6)
+	{
+		struct sockaddr_in6 *bindInet6Name = (struct sockaddr_in6 *) &bindSockName;
+		bindInet6Name->sin6_family = AF_INET6;
+		bindInet6Name->sin6_port = 0;	/*	Let O/S select it.	*/
+		memcpy((char *) &(bindInet6Name->sin6_addr.s6_addr),
+				(char *) bindIpAddr, 16);
+	} 
 
 	/*	Now create the socket that will be used for sending
 	 *	datagrams to the peer LTP engine and receiving
 	 *	datagrams from the peer LTP engine.			*/
 
-	rtp.linkSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (rtp.linkSocket < 0)
+	if (domain == AF_INET)
 	{
-		putSysErrmsg("LSO can't open UDP socket", NULL);
-		return 1;
+		rtp.linkSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (rtp.linkSocket < 0)
+		{
+			putSysErrmsg("LSO can't open UDP socket", NULL);
+			return 1;
+		}
+	}
+	else if (domain == AF_INET6)
+	{
+		rtp.linkSocket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+		if (rtp.linkSocket < 0)
+		{
+			putSysErrmsg("LSO can't open UDP socket", NULL);
+			return 1;
+		}
 	}
 
 	/*	Bind the socket to own socket address so that we can
 	 *	send a 1-byte datagram to that address to shut down
 	 *	the datagram handling thread.				*/
 
-	nameLength = sizeof(struct sockaddr);
-	if (bind(rtp.linkSocket, &bindSockName, nameLength) < 0
-	|| getsockname(rtp.linkSocket, &bindSockName, &nameLength) < 0)
+	nameLength = sizeof(struct sockaddr_storage);
+	if (bind(rtp.linkSocket, (struct sockaddr *) &bindSockName, nameLength) < 0
+	|| getsockname(rtp.linkSocket, (struct sockaddr *) &bindSockName, &nameLength) < 0)
 	{
 		closesocket(rtp.linkSocket);
 		putSysErrmsg("LSO can't bind UDP socket", NULL);
@@ -320,6 +352,7 @@ int	main(int argc, char *argv[])
 	/*	Can now begin transmitting to remote engine.		*/
 
 	{
+		// TODO: inet_ntoa
 		char	memoBuf[1024];
 
 		isprintf(memoBuf, sizeof(memoBuf),
@@ -356,8 +389,12 @@ int	main(int argc, char *argv[])
 		}
 		else
 		{
-			bytesSent = sendSegmentByUDP(rtp.linkSocket, segment,
-					segmentLength, peerInetName);
+			if (domain == AF_INET)
+				bytesSent = sendSegmentByUDP(rtp.linkSocket, segment,
+						segmentLength, peerInetName);
+		    else if (domain == AF_INET6)
+				bytesSent = sendSegmentByUDP(rtp.linkSocket, segment,
+						segmentLength, peerInet6Name);
 			if (bytesSent < segmentLength)
 			{
 				rtp.running = 0;/*	Terminate LSO.	*/
@@ -384,22 +421,40 @@ int	main(int argc, char *argv[])
 
 	/*	Create one-use socket for the closing quit byte.	*/
 
-	portNbr = bindInetName->sin_port;	/*	From binding.	*/
-	ipAddress = getInternetAddress(ownHostName);
-	ipAddress = htonl(ipAddress);
 	memset((char *) &ownSockName, 0, sizeof ownSockName);
-	ownInetName = (struct sockaddr_in *) &ownSockName;
-	ownInetName->sin_family = AF_INET;
-	ownInetName->sin_port = portNbr;
-	memcpy((char *) &(ownInetName->sin_addr.s_addr),
-			(char *) &ipAddress, 4);
+	if (domain == AF_INET)
+	{
+		// TODO: ipAddress
+		portNbr = bindInetName->sin_port;	/*	From binding.	*/
+		ipAddress = getInternetAddress(ownHostName);
+		ipAddress = htonl(ipAddress);
+		struct sockaddr_in *ownInetName = (struct sockaddr_in *) &ownSockName;
+		ownInetName->sin_family = AF_INET;
+		ownInetName->sin_port = portNbr;
+		memcpy((char *) &(ownInetName->sin_addr.s_addr),
+				(char *) &ipAddress, 4);
+		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	}
+	else if (domain == AF_INET6)
+	{
+		// TODO: ipAddress
+		portNbr = bindInet6Name->sin6_port;	/*	From binding.	*/
+		ipAddress = getInternetAddress(ownHostName);
+		ipAddress = htonl(ipAddress);
+		struct sockaddr_in6 * ownInet6Name = (struct sockaddr_in6 *) &ownSockName;
+		ownInet6Name->sin6_family = AF_INET6;
+		ownInet6Name->sin6_port = portNbr;
+		memcpy((char *) &(ownInet6Name->sin6_addr.s6_addr),
+				(char *) &ipAddress, 16);
+		fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	}
 
 	/*	Wake up the receiver thread by sending it a 1-byte
 	 *	datagram.						*/
 
-	fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd >= 0)
 	{
+		// TODO
 		isendto(fd, &quit, 1, 0, &ownSockName, sizeof(struct sockaddr));
 		closesocket(fd);
 	}
