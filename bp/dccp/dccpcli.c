@@ -414,7 +414,7 @@ int	main(int argc, char *argv[])
         inetName->sin_port = portNbr;
         memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
     }
-    else (domain == AF_INET6)
+    else if(domain == AF_INET6)
     {
         struct sockaddr_in6 *inet6Name = (struct sockaddr_in6 *) &socketName;
         inet6Name->sin6_family = AF_INET6;
