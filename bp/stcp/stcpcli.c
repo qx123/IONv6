@@ -146,8 +146,10 @@ static void	*receiveBundles(void *parm)
 typedef struct
 {
 	VInduct			*vduct;
-	struct sockaddr		socketName;
+	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
+    struct sockaddr_in6 *inet6Name;
+    int         domain;
 	int			ductSocket;
 	int			running;
 } AccessThreadParms;
@@ -162,7 +164,7 @@ static void	*spawnReceivers(void *parm)
 	pthread_mutex_t		mutex;
 	Lyst			threads;
 	int			newSocket;
-	struct sockaddr		cloSocketName;
+	struct sockaddr_storage		cloSocketName;
 	socklen_t		nameLength;
 	ReceiverThreadParms	*parms;
 	LystElt			elt;
@@ -184,8 +186,8 @@ static void	*spawnReceivers(void *parm)
 
 	while (atp->running)
 	{
-		nameLength = sizeof(struct sockaddr);
-		newSocket = accept(atp->ductSocket, &cloSocketName,
+		nameLength = sizeof(struct sockaddr_storage);
+		newSocket = accept(atp->ductSocket, (struct sockaddr *) &cloSocketName,
 				&nameLength);
 		if (newSocket < 0)
 		{
@@ -300,6 +302,7 @@ int	main(int argc, char *argv[])
 	char			*hostName;
 	unsigned short		portNbr;
 	unsigned int		hostNbr;
+    unsigned char       hostAddr[sizeof(struct in6_addr)];
 	AccessThreadParms	atp;
 	socklen_t		nameLength;
 	ReqAttendant		attendant;
@@ -341,7 +344,7 @@ int	main(int argc, char *argv[])
 	sdr_read(sdr, (char *) &protocol, duct.protocol, sizeof(ClProtocol));
 	sdr_exit_xn(sdr);
 	hostName = ductName;
-	if (parseSocketSpec(ductName, &portNbr, &hostNbr) != 0)
+	if ((atp.domain = parseSocketSpec(ductName, &portNbr, hostAddr)) < 0)
 	{
 		putErrmsg("Can't get IP/port for host.", hostName);
 		return -1;
@@ -353,25 +356,35 @@ int	main(int argc, char *argv[])
 	}
 
 	portNbr = htons(portNbr);
-	hostNbr = htonl(hostNbr);
 	atp.vduct = vduct;
 	memset((char *) &(atp.socketName), 0, sizeof(struct sockaddr));
-	atp.inetName = (struct sockaddr_in *) &(atp.socketName);
-	atp.inetName->sin_family = AF_INET;
-	atp.inetName->sin_port = portNbr;
-	memcpy((char *) &(atp.inetName->sin_addr.s_addr), (char *) &hostNbr, 4);
-	atp.ductSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (atp.domain == AF_INET)
+    {
+        atp.inetName = (struct sockaddr_in *) &(atp.socketName);
+        atp.inetName->sin_family = AF_INET;
+        atp.inetName->sin_port = portNbr;
+        memcpy((char *) &(atp.inetName->sin_addr.s_addr), (char *) hostAddr, 4);
+        atp.ductSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    }
+    else if (atp.domain == AF_INET6)
+    {
+        atp.inet6Name = (struct sockaddr_in6 *) &(atp.socketName);
+        atp.inet6Name->sin_6family = AF_INET6;
+        atp.inet6Name->sin6_port = portNbr;
+        memcpy((char *) &(atp.inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+        atp.ductSocket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    }
 	if (atp.ductSocket < 0)
 	{
 		putSysErrmsg("Can't open TCP socket", NULL);
 		return 1;
 	}
 
-	nameLength = sizeof(struct sockaddr);
+	nameLength = sizeof(struct sockaddr_storage);
 	if (reUseAddress(atp.ductSocket)
-	|| bind(atp.ductSocket, &(atp.socketName), nameLength) < 0
+	|| bind(atp.ductSocket, (struct sockaddr *) &(atp.socketName), nameLength) < 0
 	|| listen(atp.ductSocket, 5) < 0
-	|| getsockname(atp.ductSocket, &(atp.socketName), &nameLength) < 0)
+	|| getsockname(atp.ductSocket, (struct sockaddr *) &(atp.socketName), &nameLength) < 0)
 	{
 		closesocket(atp.ductSocket);
 		putSysErrmsg("Can't initialize socket", NULL);
@@ -412,7 +425,7 @@ int	main(int argc, char *argv[])
 
 	{
 		char	txt[500];
-
+        // TODO: change to ipv
 		isprintf(txt, sizeof(txt),
 			"[i] stcpcli is running, spec=[%s:%d].", 
 			inet_ntoa(atp.inetName->sin_addr), ntohs(portNbr));
@@ -428,10 +441,10 @@ int	main(int argc, char *argv[])
 
 	/*	Wake up the access thread by connecting to it.		*/
 
-	fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	fd = socket(atp.domain, SOCK_STREAM, IPPROTO_TCP);
 	if (fd >= 0)
 	{
-		oK(connect(fd, &(atp.socketName), sizeof(struct sockaddr)));
+		oK(connect(fd, (struct sockaddr *) &(atp.socketName), sizeof(struct sockaddr_storage)));
 
 		/*	Immediately discard the connected socket.	*/
 
