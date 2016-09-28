@@ -55,7 +55,8 @@ int connectDCCPsock(int* sock, struct sockaddr* socketName, int* MPS)
 		return -1;
 	}
 
-	if ((*sock = socket(AF_INET, SOCK_DCCP, IPPROTO_DCCP)) < 0 )
+    // TODO: v4?v6
+	if ((*sock = socket(AF_INET6, SOCK_DCCP, IPPROTO_DCCP)) < 0 )
 	{
 		putSysErrmsg("DCCPCLO can't open DCCP socket. This probably means DCCP is not supported on your system.", NULL);
 		return -1;
@@ -161,7 +162,7 @@ int	sendBytesByDCCP(int linkSocket, char *from, int length)
 typedef struct {
 	int 				active;
 	int					linksocket;
-	struct sockaddr		socketName;
+	struct sockaddr_storage		socketName;
 	int					MPS;
 	int 				done;
 	pthread_mutex_t		mutex;
@@ -197,7 +198,7 @@ void* send_keepalives(void* param)
 		time = KEEPALIVE_PERIOD;
 		while (!itp->done && sendBytesByDCCP(itp->linksocket, keepalive,4) < 0)
 		{
-			if (!itp->done && connectDCCPsock(&itp->linksocket, &itp->socketName, &itp->MPS) < 0)
+			if (!itp->done && connectDCCPsock(&itp->linksocket, (struct sockaddr *) &itp->socketName, &itp->MPS) < 0)
 			{
 				pthread_mutex_unlock(&itp->mutex);
 				snooze(time);
@@ -272,10 +273,10 @@ int	sendBundleByDCCP(clo_state* itp, Object* bundleZco, BpExtendedCOS *extendedC
 	/* Connect socket				*/
 	if (!itp->active)
 	{
-		if (connectDCCPsock(&itp->linksocket, &itp->socketName, &itp->MPS) < 0)
+		if (connectDCCPsock(&itp->linksocket, (struct sockaddr *) &itp->socketName, &itp->MPS) < 0)
 		{
 			itp->active = 0;
-			return handleDccpFailure(itp->ductname, &itp->socketName, bundleZco);
+			return handleDccpFailure(itp->ductname, (struct sockaddr *) &itp->socketName, bundleZco);
 		}
 		itp->active = 1;
 	}
@@ -309,9 +310,9 @@ int	sendBundleByDCCP(clo_state* itp, Object* bundleZco, BpExtendedCOS *extendedC
 			if (bytesSent==-2)
 			{
 				/*There is no connection. Attempt to reestablish it. */
-				if (connectDCCPsock(&itp->linksocket, &itp->socketName, &itp->MPS)<0)
+				if (connectDCCPsock(&itp->linksocket, (struct sockaddr *) &itp->socketName, &itp->MPS)<0)
 				{
-					return handleDccpFailure(itp->ductname, &itp->socketName, bundleZco);
+					return handleDccpFailure(itp->ductname, (struct sockaddr *) &itp->socketName, bundleZco);
 				}
 				else
 				{
@@ -320,7 +321,7 @@ int	sendBundleByDCCP(clo_state* itp, Object* bundleZco, BpExtendedCOS *extendedC
 			}
 			else
 			{
-				return handleDccpFailure(itp->ductname, &itp->socketName, bundleZco);
+				return handleDccpFailure(itp->ductname, (struct sockaddr *) &itp->socketName, bundleZco);
 			}
 		}
 		itp->active = 1;
@@ -363,8 +364,8 @@ int	main(int argc, char *argv[])
 	Outflow				outflows[3];
 	char* 				hostName;
 	unsigned short		portNbr = 0;
-	unsigned int		ipAddress = 0;
-	struct sockaddr_in	*inetName;
+    unsigned char       hostAddr[sizeof(struct in6_addr)];
+    int                 domain;
 	pthread_t			keepalive_thread;
 	clo_state			itp;
 	Object				bundleZco;
@@ -435,7 +436,7 @@ int	main(int argc, char *argv[])
 
 	/* get host to connect to from outduct				*/
 	hostName = ductName;
-	if (parseSocketSpec(hostName, &portNbr, &ipAddress) != 0)
+	if ((domain = parseSocketSpec(hostName, &portNbr, &ipAddress)) < 0)
 	{
 		putErrmsg("Can't get IP/port for host.", hostName);
 		return 1;
@@ -446,12 +447,21 @@ int	main(int argc, char *argv[])
 	}
 
 	portNbr = htons(portNbr);
-	ipAddress = htonl(ipAddress);
 	memset((char *) &itp.socketName, 0, sizeof itp.socketName);
-	inetName = (struct sockaddr_in *) &itp.socketName;
-	inetName->sin_family = AF_INET;
-	inetName->sin_port = portNbr;
-	memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &ipAddress, 4);
+    if (domain == AF_INET)
+    {
+        struct sockaddr_in *inetName = (struct sockaddr_in *) &itp.socketName;
+        inetName->sin_family = AF_INET;
+        inetName->sin_port = portNbr;
+        memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
+    }
+    else if (domain == AF_INET6)
+    {
+        struct sockaddr_in6 *inet6Name = (struct sockaddr_in6 *) &itp.socketName;
+        inet6Name->sin6_family = AF_INET6;
+        inet6Name->sin6_port = portNbr;
+        memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+    }
 
 	/*	Set up signal handling. SIGTERM is shutdown signal.	*/
 	oK(dccpcloSemaphore(&(vduct->semaphore)));
