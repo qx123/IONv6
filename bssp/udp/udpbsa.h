@@ -16,6 +16,7 @@
 
 #include "bsspP.h"
 #include <pthread.h>
+#include <netinet/ip6.h>
 
 #ifdef __cplusplus
 extern "C" {

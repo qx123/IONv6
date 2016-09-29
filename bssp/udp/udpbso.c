@@ -18,17 +18,19 @@
 
 #if defined(linux)
 
-#define IPHDR_SIZE	(sizeof(struct iphdr) + sizeof(struct udphdr))
+#define IPHDR_SIZE		(sizeof(struct iphdr) + sizeof(struct udphdr))
+#define IP6_HDR_SIZE 	(sizeof(struct ip6_hdr) + sizeof(struct udphdr))
 
 #elif defined(mingw)
 
-#define IPHDR_SIZE	(20 + 8)
+#define IPHDR_SIZE		(20 + 8)
+#define IP6_HDR_SIZE 	(40 + 8)
 
 #else
 
 #include "netinet/ip_var.h"
 #include "netinet/udp_var.h"
-
+// freeBSD??
 #define IPHDR_SIZE	(sizeof(struct udpiphdr))
 
 #endif
