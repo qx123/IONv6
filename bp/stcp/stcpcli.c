@@ -422,14 +422,26 @@ int	main(int argc, char *argv[])
 
 	/*	Now sleep until interrupted by SIGTERM, at which point
 	 *	it's time to stop the induct.				*/
-
 	{
-		char	txt[500];
-        // TODO: change to ipv
-		isprintf(txt, sizeof(txt),
-			"[i] stcpcli is running, spec=[%s:%d].", 
-			inet_ntoa(atp.inetName->sin_addr), ntohs(portNbr));
-		writeMemo(txt);
+		char    txt[500];
+
+		if (domain == AF_INET)
+		{
+			isprintf(txt, sizeof(txt),
+				"[i] stcpcli is running, spec=[%s:%d].", 
+				inet_ntoa(atp.inetName->sin_addr), ntohs(portNbr));
+			writeMemo(txt);
+		}
+		else if (domain == AF_INET6)
+		{
+			char hostStr[INET6_ADDRSTRLEN];
+			inet_ntop(atp.domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
+
+			isprintf(txt, sizeof(txt),
+				"[i] stcpcli is running, spec=[%s:%d].", 
+				hostStr, ntohs(portNbr));
+			writeMemo(txt);
+		}
 	}
 
 	ionPauseMainThread(-1);

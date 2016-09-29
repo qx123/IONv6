@@ -841,27 +841,19 @@ port 80)", NULL);
 		{
 			isprintf(txt, sizeof(txt),
 				"[i] brsscla is running, spec=[%s:%d].",  
-				inet_ntoa(inetName->sin_addr), ntohs(portNbr));
+				inet_ntoa(atp.inetName->sin_addr), ntohs(portNbr));
 			writeMemo(txt);
 		}
 		else if (domain == AF_INET6)
 		{
 			char hostStr[INET6_ADDRSTRLEN];
-			inet_ntop(domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
+			inet_ntop(apt.domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
 
 			isprintf(txt, sizeof(txt),
 				"[i] brsscla is running, spec=[%s:%d].", 
 				hostStr, ntohs(portNbr));
 			writeMemo(txt);
 		}
-	}
-	{
-		char	txt[500];
-
-		isprintf(txt, sizeof(txt),
-			"[i] brsscla is running, spec=[%s:%d].", 
-			inet_ntoa(atp.inetName->sin_addr), ntohs(portNbr));
-		writeMemo(txt);
 	}
 
 	ionPauseMainThread(-1);
