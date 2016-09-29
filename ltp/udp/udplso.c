@@ -18,18 +18,20 @@
 
 #if defined(linux)
 
-#define IPHDR_SIZE	(sizeof(struct iphdr) + sizeof(struct udphdr))
+#define IPHDR_SIZE      (sizeof(struct iphdr) + sizeof(struct udphdr))
+#define IP6_HDR_SIZE    (sizeof(struct ip6_hdr) + sizeof(struct udphdr))
 
 #elif defined(mingw)
 
-#define IPHDR_SIZE	(20 + 8)
+#define IPHDR_SIZE      (20 + 8)
+#define IP6_HDR_SIZE    (40 + 8)
 
 #else
 
 #include "netinet/ip_var.h"
 #include "netinet/udp_var.h"
-
-#define IPHDR_SIZE	(sizeof(struct udpiphdr))
+// freeBSD??
+#define IPHDR_SIZE  (sizeof(struct udpiphdr))
 
 #endif
 
@@ -123,7 +125,7 @@ static void	*handleDatagrams(void *parm)
 /*	*	*	Main thread functions	*	*	*	*/
 
 int	sendSegmentByUDP(int linkSocket, char *from, int length,
-		struct sockaddr_in *destAddr )
+		struct sockaddr_storage *destAddr, int domain)
 {
 	int	bytesWritten;
 
@@ -131,7 +133,7 @@ int	sendSegmentByUDP(int linkSocket, char *from, int length,
 	{
 		bytesWritten = isendto(linkSocket, from, length, 0,
 				(struct sockaddr *) destAddr,
-				sizeof(struct sockaddr));
+				sizeof(struct sockaddr_storage));
 		if (bytesWritten < 0)
 		{
 			if (errno == EINTR)	/*	Interrupted.	*/
@@ -146,14 +148,29 @@ int	sendSegmentByUDP(int linkSocket, char *from, int length,
 
 			{
 				char			memoBuf[1000];
-				struct sockaddr_in	*saddr = destAddr;
+				if (domain ==  AF_INET)
+				{
+					struct sockaddr_in	*saddr = destAddr;
 
-				isprintf(memoBuf, sizeof(memoBuf),
-					"udplso sendto() error, dest=[%s:%d], \
-nbytes=%d, rv=%d, errno=%d", (char *) inet_ntoa(saddr->sin_addr), 
-					ntohs(saddr->sin_port), 
-					length, bytesWritten, errno);
-				writeMemo(memoBuf);
+					isprintf(memoBuf, sizeof(memoBuf),
+						"udplso sendto() error, dest=[%s:%d], \
+	nbytes=%d, rv=%d, errno=%d", (char *) inet_ntoa(saddr->sin_addr), 
+						ntohs(saddr->sin_port), 
+						length, bytesWritten, errno);
+					writeMemo(memoBuf);
+				}
+				else if (domain == AF_INET6)
+				{
+					struct sockaddr_in6	*saddr = destAddr;
+					char hostStr[INET6_ADDRSTRLEN];
+					inet_ntop(domain, saddr->sin6_addr, hostStr, INET6_ADDRSTRLEN);
+					isprintf(memoBuf, sizeof(memoBuf),
+						"udplso sendto() error, dest=[%s:%d], \
+	nbytes=%d, rv=%d, errno=%d", hostStr, 
+						ntohs(saddr->sin6_port), 
+						length, bytesWritten, errno);
+					writeMemo(memoBuf);
+				}
 			}
 		}
 
@@ -251,11 +268,13 @@ int	main(int argc, char *argv[])
 		portNbr = LtpUdpDefaultPortNbr;
 	}
 
-	getNameOfHost(ownHostName, sizeof ownHostName);
-	if (ipAddress == 0)		/*	Default to local host.	*/
-	{
-		ipAddress = getInternetAddress(ownHostName);
-	}
+	// 如果没有找到peer的地址，默认是本地地址
+	// TODO: 获取本机地址
+	// getNameOfHost(ownHostName, sizeof ownHostName);
+	// if (ipAddress == 0)		/*	Default to local host.	*/
+	// {
+	// 	ipAddress = getInternetAddress(ownHostName);
+	// }
 
 	portNbr = htons(portNbr);
 	memset((char *) &peerSockName, 0, sizeof peerSockName);
@@ -281,6 +300,7 @@ int	main(int argc, char *argv[])
 	 *	than to the advertised link service input socket.	*/
     
 	memset((char *) &bindSockName, 0, sizeof bindSockName);
+	// bindaddr: 0.0.0.0 or ::0
 	if (domain == AF_INET)
 	{
 		struct sockaddr_in *bindInetName = (struct sockaddr_in *) &bindSockName;
@@ -352,14 +372,26 @@ int	main(int argc, char *argv[])
 	/*	Can now begin transmitting to remote engine.		*/
 
 	{
-		// TODO: inet_ntoa
 		char	memoBuf[1024];
+		if (domain == AF_INET)
+		{
+			isprintf(memoBuf, sizeof(memoBuf),
+				"[i] udplso is running, spec=[%s:%d], txbps=%d \
+	(0=unlimited), rengine=%d.", (char *) inet_ntoa(peerInetName->sin_addr),
+				ntohs(portNbr), txbps, (int) remoteEngineId);
+			writeMemo(memoBuf);
+		}
+		else if (domain == AF_INET6)
+		{
+			char hostStr[INET6_ADDRSTRLEN];
+			inet_ntop(domain, peerInet6Name->sin6_addr, hostStr, INET6_ADDRSTRLEN);
 
-		isprintf(memoBuf, sizeof(memoBuf),
-			"[i] udplso is running, spec=[%s:%d], txbps=%d \
-(0=unlimited), rengine=%d.", (char *) inet_ntoa(peerInetName->sin_addr),
-			ntohs(portNbr), txbps, (int) remoteEngineId);
-		writeMemo(memoBuf);
+			isprintf(memoBuf, sizeof(memoBuf),
+				"[i] udplso is running, spec=[%s:%d], txbps=%d \
+	(0=unlimited), rengine=%d.", hostStr,
+				ntohs(portNbr), txbps, (int) remoteEngineId);
+			writeMemo(memoBuf);
+		}
 	}
 
 	if (txbps)
@@ -389,12 +421,8 @@ int	main(int argc, char *argv[])
 		}
 		else
 		{
-			if (domain == AF_INET)
-				bytesSent = sendSegmentByUDP(rtp.linkSocket, segment,
-						segmentLength, peerInetName);
-		    else if (domain == AF_INET6)
-				bytesSent = sendSegmentByUDP(rtp.linkSocket, segment,
-						segmentLength, peerInet6Name);
+			bytesSent = sendSegmentByUDP(rtp.linkSocket, segment,
+					segmentLength, peerSockName, domain);
 			if (bytesSent < segmentLength)
 			{
 				rtp.running = 0;/*	Terminate LSO.	*/
@@ -420,32 +448,35 @@ int	main(int argc, char *argv[])
 	}
 
 	/*	Create one-use socket for the closing quit byte.	*/
+	// temporarily used
+	struct addrinfo *ownSockAddr, hint, *curr;
+	bzero(&hint, sizeof(hint));
+	hint.ai_family = domain;
+	int ret = getaddrinfo(ownSockName, NULL, &hint, &ownSockAddr);
 
 	memset((char *) &ownSockName, 0, sizeof ownSockName);
 	if (domain == AF_INET)
 	{
-		// TODO: ipAddress
 		portNbr = bindInetName->sin_port;	/*	From binding.	*/
-		ipAddress = getInternetAddress(ownHostName);
-		ipAddress = htonl(ipAddress);
+		// ipAddress = getInternetAddress(ownHostName);
+		// ipAddress = htonl(ipAddress);
 		struct sockaddr_in *ownInetName = (struct sockaddr_in *) &ownSockName;
 		ownInetName->sin_family = AF_INET;
 		ownInetName->sin_port = portNbr;
-		memcpy((char *) &(ownInetName->sin_addr.s_addr),
-				(char *) &ipAddress, 4);
+		memcpy((char *) &(ownInetName->sin_addr),
+				(char *) (ownSockAddr->ai_addr)->sin_addr, 4);
 		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	}
 	else if (domain == AF_INET6)
 	{
-		// TODO: ipAddress
 		portNbr = bindInet6Name->sin6_port;	/*	From binding.	*/
-		ipAddress = getInternetAddress(ownHostName);
-		ipAddress = htonl(ipAddress);
+		// ipAddress = getInternetAddress(ownHostName);
+		// ipAddress = htonl(ipAddress);
 		struct sockaddr_in6 * ownInet6Name = (struct sockaddr_in6 *) &ownSockName;
 		ownInet6Name->sin6_family = AF_INET6;
 		ownInet6Name->sin6_port = portNbr;
 		memcpy((char *) &(ownInet6Name->sin6_addr.s6_addr),
-				(char *) &ipAddress, 16);
+				(char *) (ownSockAddr->ai_addr)->sin_addr, 16);
 		fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	}
 
@@ -455,7 +486,7 @@ int	main(int argc, char *argv[])
 	if (fd >= 0)
 	{
 		// TODO
-		isendto(fd, &quit, 1, 0, &ownSockName, sizeof(struct sockaddr));
+		isendto(fd, &quit, 1, 0, (struct sockaddr *) &ownSockName, sizeof(struct sockaddr_storage));
 		closesocket(fd);
 	}
 

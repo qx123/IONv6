@@ -13,6 +13,8 @@
 
 #include "ltpP.h"
 #include <pthread.h>
+#include <netinet/ip6.h>
+#include <netdb.h>
 
 #ifdef __cplusplus
 extern "C" {
