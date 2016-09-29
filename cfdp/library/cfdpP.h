@@ -199,6 +199,8 @@ typedef struct
 	uvast			bpNodeNbr;
 	uvast			ltpEngineNbr;
 	unsigned int		ipAddress;
+	unsigned char 		hostAddr[sizeof(struct in6_addr)];
+	int 				domain;
 	unsigned short		portNbr;
 	unsigned int		ackTimerInterval;
 	CfdpCksumType		inCkType;

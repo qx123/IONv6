@@ -1147,8 +1147,8 @@ Object	addEntity(uvast entityId, char *protocolName, char *endpointName,
 	else if (strcmp(protocolName, "tcp") == 0)
 	{
 		entity.utLayer = UtTcp;
-		parseSocketSpec(endpointName, &entity.portNbr,
-				&entity.ipAddress);
+		entity.domain = parseSocketSpec(endpointName, &entity.portNbr,
+				entity.hostAddr);
 		if (entity.ipAddress == 0)
 		{
 			entity.ipAddress = getAddressOfHost();
@@ -1228,8 +1228,8 @@ int	changeEntity(uvast entityId, char *protocolName, char *endpointName,
 	else if (strcmp(protocolName, "tcp") == 0)
 	{
 		entity.utLayer = UtTcp;
-		parseSocketSpec(endpointName, &entity.portNbr,
-				&entity.ipAddress);
+		entity.domain = parseSocketSpec(endpointName, &entity.portNbr,
+				entity.hostAddr);
 		if (entity.ipAddress == 0)
 		{
 			entity.ipAddress = getAddressOfHost();
