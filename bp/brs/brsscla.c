@@ -528,8 +528,10 @@ time tag is %u, must be between %u and %u.", (unsigned int) timeTag,
 typedef struct
 {
 	VInduct			*vduct;
-	struct sockaddr		socketName;
+	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
+    struct sockaddr_in6 *inet6Name;
+    int         domain;
 	int			ductSocket;
 	int			running;
 	int			baseDuctNbr;
@@ -547,8 +549,8 @@ static void	*spawnReceivers(void *parm)
 	pthread_mutex_t		mutex;
 	Lyst			threads;
 	int			newSocket;
-	struct sockaddr		clientSocketName;
-	socklen_t		nameLength = sizeof(struct sockaddr);
+	struct sockaddr_storage		clientSocketName;
+	socklen_t		nameLength = sizeof(struct sockaddr_storage);
 	ReceiverThreadParms	*receiverParms;
 	int			authenticated;
 	LystElt			elt;
@@ -571,7 +573,7 @@ static void	*spawnReceivers(void *parm)
 	while (atp->running)
 	{
 		nameLength = sizeof(struct sockaddr);
-		newSocket = accept(atp->ductSocket, &clientSocketName,
+		newSocket = accept(atp->ductSocket, (struct sockaddr *) &clientSocketName,
 				&nameLength);
 		if (newSocket < 0)
 		{
@@ -692,7 +694,7 @@ static int	run_brsscla(char *ductName, int baseDuctNbr, int lastDuctNbr,
 	ClProtocol		protocol;
 	char			*hostName;
 	unsigned short		portNbr;
-	unsigned int		hostNbr = INADDR_ANY;
+    unsigned char       hostAddr[sizeof(struct in6_addr)];
 	AccessThreadParms	atp;
 	socklen_t		nameLength;
 	ReqAttendant		attendant;
@@ -731,7 +733,7 @@ static int	run_brsscla(char *ductName, int baseDuctNbr, int lastDuctNbr,
 	sdr_read(sdr, (char *) &protocol, induct.protocol, sizeof(ClProtocol));
 	sdr_exit_xn(sdr);
 	hostName = ductName;
-	if (parseSocketSpec(ductName, &portNbr, &hostNbr) != 0)
+	if ((domain = parseSocketSpec(ductName, &portNbr, hostAddr)) < 0)
 	{
 		putErrmsg("Can't get IP/port for host.", hostName);
 		return 1;
@@ -745,25 +747,35 @@ static int	run_brsscla(char *ductName, int baseDuctNbr, int lastDuctNbr,
 	/*	hostNbr == 0 (INADDR_ANY) is okay for BRS server.	*/
 
 	portNbr = htons(portNbr);
-	hostNbr = htonl(hostNbr);
 	atp.vduct = vinduct;
 	memset((char *) &(atp.socketName), 0, sizeof(struct sockaddr));
-	atp.inetName = (struct sockaddr_in *) &(atp.socketName);
-	atp.inetName->sin_family = AF_INET;
-	atp.inetName->sin_port = portNbr;
-	memcpy((char *) &(atp.inetName->sin_addr.s_addr), (char *) &hostNbr, 4);
-	atp.ductSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (domain == AF_INET)
+    {
+        atp.inetName = (struct sockaddr_in *) &(atp.socketName);
+        atp.inetName->sin_family = AF_INET;
+        atp.inetName->sin_port = portNbr;
+        memcpy((char *) &(atp.inetName->sin_addr.s_addr), (char *) hostAddr, 4);
+        atp.ductSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    }
+    else if (domain == AF_INET6)
+    {
+        atp.inet6Name = (struct sockaddr_in6 *) &(atp.socketName);
+        atp.inet6Name->sin6_family = AF_INET6;
+        atp.inet6Name->sin6_port = portNbr;
+        memcpy((char *) &(atp.inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+        atp.ductSocket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    }
 	if (atp.ductSocket < 0)
 	{
 		putSysErrmsg("Can't open TCP socket", NULL);
 		return 1;
 	}
 
-	nameLength = sizeof(struct sockaddr);
+	nameLength = sizeof(struct sockaddr_storage);
 	if (reUseAddress(atp.ductSocket)
-	|| bind(atp.ductSocket, &(atp.socketName), nameLength) < 0
+	|| bind(atp.ductSocket, (struct sockaddr *) &(atp.socketName), nameLength) < 0
 	|| listen(atp.ductSocket, 5) < 0
-	|| getsockname(atp.ductSocket, &(atp.socketName), &nameLength) < 0)
+	|| getsockname(atp.ductSocket, (struct sockaddr *) &(atp.socketName), &nameLength) < 0)
 	{
 		closesocket(atp.ductSocket);
 		putSysErrmsg("Can't initialize socket (note: must be root for \
@@ -822,7 +834,27 @@ port 80)", NULL);
 
 	/*	Now sleep until interrupted by SIGTERM, at which point
 	 *	it's time to stop the server.				*/
+	{
+		char    txt[500];
 
+		if (domain == AF_INET)
+		{
+			isprintf(txt, sizeof(txt),
+				"[i] brsscla is running, spec=[%s:%d].",  
+				inet_ntoa(inetName->sin_addr), ntohs(portNbr));
+			writeMemo(txt);
+		}
+		else if (domain == AF_INET6)
+		{
+			char hostStr[INET6_ADDRSTRLEN];
+			inet_ntop(domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
+
+			isprintf(txt, sizeof(txt),
+				"[i] brsscla is running, spec=[%s:%d].", 
+				hostStr, ntohs(portNbr));
+			writeMemo(txt);
+		}
+	}
 	{
 		char	txt[500];
 
@@ -850,10 +882,10 @@ port 80)", NULL);
 
 	/*	Wake up the access thread by connecting to it.		*/
 
-	fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	fd = socket(atp.domain, SOCK_STREAM, IPPROTO_TCP);
 	if (fd >= 0)
 	{
-		oK(connect(fd, &(atp.socketName), sizeof(struct sockaddr)));
+		oK(connect(fd, (struct sockaddr *) &(atp.socketName), sizeof(struct sockaddr_storage)));
 
 		/*	Immediately discard the connected socket.	*/
 
