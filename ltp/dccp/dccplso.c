@@ -47,7 +47,7 @@ void	handleConnectionLoss()
 /*	*	*	General Functions	*	*	*	*/
 
 
-int connectDCCPsock(int* sock, struct sockaddr* socketName, int* MPS)
+int connectDCCPsock(int* sock, struct sockaddr* socketName, int* MPS, int domain)
 {
 	int on;
 	unsigned int is;
@@ -58,13 +58,13 @@ int connectDCCPsock(int* sock, struct sockaddr* socketName, int* MPS)
 		return -1;
 	}
 
-	if ((*sock = socket(AF_INET, SOCK_DCCP, IPPROTO_DCCP)) < 0 )
+	if ((*sock = socket(domain, SOCK_DCCP, IPPROTO_DCCP)) < 0 )
 	{
 		putSysErrmsg("DCCPLSO can't open DCCP socket. This probably means DCCP is not supported on your system.", NULL);
 		return -1;
 	}
 
-	if (connect(*sock, socketName, sizeof(struct sockaddr_in)) < 0)
+	if (connect(*sock, socketName, sizeof(struct sockaddr_storage)) < 0)
 	{
 		writeMemo("[i] DCCP connection to LSI could not be established. Retrying.");
 		return -1;
@@ -164,7 +164,8 @@ int	sendDataByDCCP(int linkSocket, char *from, int length)
 typedef struct {
 	int 			active;
 	int				linksocket;
-	struct sockaddr	socketName;
+	struct sockaddr_storage	socketName;
+	int				domain = AF_INET;
 	int				MPS;
 	int 			done;
 	pthread_mutex_t	mutex;
@@ -199,7 +200,7 @@ void* send_keepalives(void* param)
 		time = KEEPALIVE_PERIOD;
 		while (!itp->done && sendDataByDCCP(itp->linksocket, keepalive,4) < 0)
 		{
-			if (!itp->done && connectDCCPsock(&itp->linksocket, &itp->socketName, &itp->MPS) < 0)
+			if (!itp->done && connectDCCPsock(&itp->linksocket, (struct sockaddr *) &itp->socketName, &itp->MPS, itp->domain) < 0)
 			{
 				pthread_mutex_unlock(&itp->mutex);
 				snooze(time);
@@ -231,7 +232,7 @@ int sendSegmentByDCCP(lso_state* itp, char* segment, int segmentLength)
 	if (!itp->active)
 	{
 
-		if (connectDCCPsock(&itp->linksocket, &itp->socketName, &itp->MPS)<0)
+		if (connectDCCPsock(&itp->linksocket, (struct sockaddr *) &itp->socketName, &itp->MPS, itp->domain)<0)
 		{
 			/* Throw this LTP segment away. LTP will ensure it is reliably
 			 * retransmitted.*/
@@ -255,7 +256,7 @@ int sendSegmentByDCCP(lso_state* itp, char* segment, int segmentLength)
 			if (bytesSent == -2)
 			{
 				/*There is no connection. Attempt to reestablish it.*/
-				if (connectDCCPsock(&itp->linksocket, &itp->socketName, &itp->MPS) < 0)
+				if (connectDCCPsock(&itp->linksocket, (struct sockaddr *) &itp->socketName, &itp->MPS, itp->domain) < 0)
 				{
 					/* Throw this LTP segment away. LTP will ensure it is reliably
 					 * retransmitted.*/
@@ -295,10 +296,12 @@ int	main(int argc, char *argv[])
 	PsmAddress			vspanElt;
 	unsigned short		portNbr = 0;
 	unsigned int		ipAddress = 0;
+	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	int					running = 1;
 	int					segmentLength;
 	char				*segment;
 	struct sockaddr_in	*inetName;
+	struct sockaddr_in6 *inet6Name;
 	int					bytesSent;
 	pthread_t			keepalive_thread;
 	lso_state			itp;
@@ -341,7 +344,7 @@ int	main(int argc, char *argv[])
 
 	/*	All command-line arguments are now validated.		*/
 	sdr_exit_xn(sdr);
-	if (parseSocketSpec(endpointSpec, &portNbr, &ipAddress) != 0)
+	if ((itp.domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr)) < 0)
 	{
 		putErrmsg("Can't get IP/port for host.", endpointSpec);
 		return 1;
@@ -351,12 +354,21 @@ int	main(int argc, char *argv[])
 		portNbr = LtpDccpDefaultPortNbr;
 	}
 	portNbr = htons(portNbr);
-	ipAddress = htonl(ipAddress);
 	memset((char *) &itp.socketName, 0, sizeof(itp.socketName));
-	inetName = (struct sockaddr_in *) &itp.socketName;
-	inetName->sin_family = AF_INET;
-	inetName->sin_port = portNbr;
-	memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &ipAddress, 4);
+	if (itp.domain == AF_INET)
+	{
+		inetName = (struct sockaddr_in *) &itp.socketName;
+		inetName->sin_family = AF_INET;
+		inetName->sin_port = portNbr;
+		memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &ipAddress, 4);
+	}
+	else if (itp.domain == AF_INET6)
+	{
+		inet6Name = (struct sockaddr_in6 *) &itp.socketName;
+		inet6Name->sin6_family = AF_INET6;
+		inet6Name->sin6_port = portNbr;
+		memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+	}
 
 
 	/*	Set up signal handling.  SIGTERM is shutdown signal.	*/
