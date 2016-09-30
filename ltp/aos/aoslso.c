@@ -70,12 +70,15 @@ int	main(int argc, char *argv[])
 	PsmAddress		vspanElt;
 	unsigned short		portNbr = 0;
 	unsigned int		ipAddress = 0;
+	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	char			ownHostName[MAXHOSTNAMELEN];
 	int			running = 1;
 	int			segmentLength;
 	char			*segment;
-	struct sockaddr		socketName;
+	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
+	struct sockaddr_in6 *inet6Name;
+	int 		domain;
 	int			linkSocket;
 	int			bytesSent = 0;
 
@@ -123,33 +126,44 @@ int	main(int argc, char *argv[])
 	/*	All command-line arguments are now validated.		*/
 
 	sdr_exit_xn(sdr);
-	parseSocketSpec(endpointSpec, &portNbr, &ipAddress);
+	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
 	if (portNbr == 0)
 	{
 		portNbr = LtpAosDefaultPortNbr;
 	}
 
-	if (ipAddress == 0)		/*	Default to local host.	*/
-	{
-		getNameOfHost(ownHostName, sizeof ownHostName);
-		ipAddress = getInternetAddress(ownHostName);
-	}
+	// TODO: 获取本机地址
+	// if (ipAddress == 0)		/*	Default to local host.	*/
+	// {
+	// 	getNameOfHost(ownHostName, sizeof ownHostName);
+	// 	ipAddress = getInternetAddress(ownHostName);
+	// }
 
 	portNbr = htons(portNbr);
-	ipAddress = htonl(ipAddress);
 	memset((char *) &socketName, 0, sizeof socketName);
-	inetName = (struct sockaddr_in *) &socketName;
-	inetName->sin_family = AF_INET;
-	inetName->sin_port = portNbr;
-	memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &ipAddress, 4);
-	linkSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (domain == AF_INET)
+	{
+		inetName = (struct sockaddr_in *) &socketName;
+		inetName->sin_family = AF_INET;
+		inetName->sin_port = portNbr;
+		memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
+		linkSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	}
+	if (domain == AF_INET6)
+	{
+		inet6Name = (struct sockaddr_in6 *) &socketName;
+		inet6Name->sin6_family = AF_INET6;
+		inet6Name->sin6_port = portNbr;
+		memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+		linkSocket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	}
 	if (linkSocket < 0)
 	{
 		putSysErrmsg("LSO can't open AOS socket", NULL);
 		return 1;
 	}
 
-	if (connect(linkSocket, &socketName, sizeof(struct sockaddr_in)) < 0)
+	if (connect(linkSocket, (struct sockaddr *) &socketName, sizeof(struct sockaddr_storage)) < 0)
 	{
 		closesocket( linkSocket );
 		putSysErrmsg("LSO can't connect AOS socket", NULL);
@@ -163,14 +177,28 @@ int	main(int argc, char *argv[])
 
 	/*	Can now begin transmitting to remote engine.		*/
 	{
-		char	txt[500];
+		char    txt[500];
 
-		isprintf(txt, sizeof(txt),
-			"[i] aolslso is running, spec=[%s:%d], txbps=%d \
+		if (domain == AF_INET)
+		{
+			isprintf(txt, sizeof(txt),
+				"[i] aolslso is running, spec=[%s:%d], txbps=%d \
 (0=unlimited), rengine=" UVAST_FIELDSPEC ".",
-			(char *) inet_ntoa(inetName->sin_addr), 
+				(char *) inet_ntoa(inetName->sin_addr), 
 			ntohs(portNbr), txbps, remoteEngineId);
-		writeMemo(txt);
+			writeMemo(txt);
+		}
+		else if (domain == AF_INET6)
+		{
+			char hostStr[INET6_ADDRSTRLEN];
+			inet_ntop(domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
+
+			isprintf(txt, sizeof(txt),
+				"[i] aolslso is running, spec=[%s:%d], txbps=%d \
+(0=unlimited), rengine=" UVAST_FIELDSPEC ".",
+				hostStr, ntohs(portNbr), txbps, remoteEngineId);
+			writeMemo(txt);
+		}
 	}
 
 	while (running && !(sm_SemEnded(vspan->segSemaphore)))
