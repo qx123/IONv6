@@ -162,8 +162,10 @@ static void	*receiveBlocks(void *parm)
 
 typedef struct
 {
-	struct sockaddr		socketName;
+	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
+	struct sockaddr_in6 *inet6Name;
+	int 		domain;
 	int			bsiSocket;
 	int			running;
 } AccessThreadParms;
@@ -178,7 +180,7 @@ static void	*spawnReceivers(void *parm)
 	pthread_mutex_t		mutex;
 	Lyst			threads;
 	int			newSocket;
-	struct sockaddr		bsoSocketName;
+	struct sockaddr_storage		bsoSocketName;
 	socklen_t		nameLength;
 	ReceiverThreadParms	*parms;
 	LystElt			elt;
@@ -200,8 +202,8 @@ static void	*spawnReceivers(void *parm)
 
 	while (atp->running)
 	{
-		nameLength = sizeof(struct sockaddr);
-		newSocket = accept(atp->bsiSocket, &bsoSocketName,
+		nameLength = sizeof(struct sockaddr_storage);
+		newSocket = accept(atp->bsiSocket, (struct sockaddr *) &bsoSocketName,
 				&nameLength);
 		if (newSocket < 0)
 		{
@@ -312,6 +314,7 @@ int	main(int argc, char *argv[])
 	char			*hostName;
 	unsigned short		portNbr;
 	unsigned int		hostNbr;
+	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	AccessThreadParms	atp;
 	socklen_t		nameLength;
 //	char			*tcpDelayString; // Temporarily commented out to fix linking errors with tcpDelayEnable in ion-3.3.0
@@ -341,7 +344,7 @@ int	main(int argc, char *argv[])
 	/*	All command-line arguments are now validated.		*/
 
 	hostName = socketSpec;
-	if (parseSocketSpec(socketSpec, &portNbr, &hostNbr) != 0)
+	if ((atp.domain = parseSocketSpec(socketSpec, &portNbr, hostAddr)) < 0)
 	{
 		putErrmsg("RL-BSI can't get IP/port for host.", hostName);
 		return -1;
@@ -353,24 +356,34 @@ int	main(int argc, char *argv[])
 	}
 
 	portNbr = htons(portNbr);
-	hostNbr = htonl(hostNbr);
-	memset((char *) &(atp.socketName), 0, sizeof(struct sockaddr));
-	atp.inetName = (struct sockaddr_in *) &(atp.socketName);
-	atp.inetName->sin_family = AF_INET;
-	atp.inetName->sin_port = portNbr;
-	memcpy((char *) &(atp.inetName->sin_addr.s_addr), (char *) &hostNbr, 4);
-	atp.bsiSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	memset((char *) &(atp.socketName), 0, sizeof(struct sockaddr_storage));
+	if (atp.domain == AF_INET)
+	{
+		atp.inetName = (struct sockaddr_in *) &(atp.socketName);
+		atp.inetName->sin_family = AF_INET;
+		atp.inetName->sin_port = portNbr;
+		memcpy((char *) &(atp.inetName->sin_addr.s_addr), (char *) hostAddr, 4);
+		atp.bsiSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	}
+	else if (atp.domain == AF_INET)
+	{
+		atp.inet6Name = (struct sockaddr_in6 *) &(atp.socketName);
+		atp.inet6Name->sin6_family = AF_INET6;
+		atp.inet6Name->sin6_port = portNbr;
+		memcpy((char *) &(atp.inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+		atp.bsiSocket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+	}
 	if (atp.bsiSocket < 0)
 	{
 		putSysErrmsg("RL-BSI can't open TCP socket", NULL);
 		return 1;
 	}
 
-	nameLength = sizeof(struct sockaddr);
+	nameLength = sizeof(struct sockaddr_storage);
 	if (reUseAddress(atp.bsiSocket)
-	|| bind(atp.bsiSocket, &(atp.socketName), nameLength) < 0
+	|| bind(atp.bsiSocket, (struct sockaddr *) &(atp.socketName), nameLength) < 0
 	|| listen(atp.bsiSocket, 5) < 0
-	|| getsockname(atp.bsiSocket, &(atp.socketName), &nameLength) < 0)
+	|| getsockname(atp.bsiSocket, (struct sockaddr *) &(atp.socketName), &nameLength) < 0)
 	{
 		closesocket(atp.bsiSocket);
 		putSysErrmsg("RL-BSI can't initialize socket", NULL);
@@ -412,15 +425,27 @@ int	main(int argc, char *argv[])
 
 	/*	Now sleep until interrupted by SIGTERM, at which point
 	 *	it's time to stop tcpbsi.				*/
+{
+    char    txt[500];
 
-	{
-		char	txt[500];
-
-		isprintf(txt, sizeof(txt),
-			"[i] tcpbsi is running, spec=[%s:%d].", 
+    if (domain == AF_INET)
+    {
+        isprintf(txt, sizeof(txt),
+           "[i] tcpbsi is running, spec=[%s:%d].", 
 			inet_ntoa(atp.inetName->sin_addr), ntohs(portNbr));
-		writeMemo(txt);
-	}
+        writeMemo(txt);
+    }
+    else if (domain == AF_INET6)
+    {
+        char hostStr[INET6_ADDRSTRLEN];
+        inet_ntop(atp.domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
+
+        isprintf(txt, sizeof(txt),
+            "[i] tcpbsi is running, spec=[%s:%d].", 
+            hostStr, ntohs(portNbr));
+        writeMemo(txt);
+    }
+}
 
 	ionPauseMainThread(-1);
 
@@ -430,10 +455,10 @@ int	main(int argc, char *argv[])
 
 	/*	Wake up the access thread by connecting to it.		*/
 
-	fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	fd = socket(atp.domain, SOCK_STREAM, IPPROTO_TCP);
 	if (fd >= 0)
 	{
-		oK(connect(fd, &(atp.socketName), sizeof(struct sockaddr)));
+		oK(connect(fd, (struct sockaddr *) &(atp.socketName), sizeof(struct sockaddr_storage)));
 
 		/*	Immediately discard the connected socket.	*/
 
