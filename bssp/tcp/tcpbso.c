@@ -49,7 +49,7 @@ typedef struct
 {
 	int		*bsoRunning;
 	pthread_mutex_t	*mutex;
-	struct sockaddr	*socketName;
+	struct sockaddr_storage	*socketName;
 	int		*flowSocket;
 } KeepaliveThreadParms;
 
@@ -111,8 +111,11 @@ int	main(int argc, char *argv[])
 	char			*hostName;
 	unsigned short		portNbr;
 	unsigned int		hostNbr;
-	struct sockaddr		socketName;
+	unsigned char 		hostAddr[sizeof(struct in6_addr)];
+	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
+	struct sockaddr_in6	*inet6Name;
+	int 		domain;
 	int			running = 1;
 	pthread_mutex_t		mutex;
 	KeepaliveThreadParms	parms;
@@ -158,7 +161,7 @@ engine number>");
 	/*	All command-line arguments are now validated.		*/
 
 	hostName = flowName;
-	parseSocketSpec(flowName, &portNbr, &hostNbr);
+	domain = parseSocketSpec(flowName, &portNbr, hostAddr);
 	if (portNbr == 0)
 	{
 		portNbr = bsspTcpDefaultPortNbr;
@@ -171,12 +174,21 @@ engine number>");
 		return -1;
 	}
 
-	hostNbr = htonl(hostNbr);
 	memset((char *) &socketName, 0, sizeof socketName);
-	inetName = (struct sockaddr_in *) &socketName;
-	inetName->sin_family = AF_INET;
-	inetName->sin_port = portNbr;
-	memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &hostNbr, 4);
+	if (domain == AF_INET)
+	{
+		inetName = (struct sockaddr_in *) &socketName;
+		inetName->sin_family = AF_INET;
+		inetName->sin_port = portNbr;
+		memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
+	}
+	else if (domain == AF_INET6)
+	{
+		inet6Name = (struct sockaddr_in6 *) &socketName;
+		inet6Name->sin6_family = AF_INET6;
+		inet6Name->sin6_port = portNbr;
+		memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+	}
 
 	/*	Set up signal handling.  SIGTERM is shutdown signal.	*/
 
@@ -203,13 +215,25 @@ engine number>");
 	/*	Can now begin transmitting to remote flow.		*/
 
 	{
-		char	txt[500];
+		char    txt[500];
 
-		isprintf(txt, sizeof(txt),
-			"[i] tcpbso is running, spec=[%s:%d].", 
-			inet_ntoa(inetName->sin_addr),
-			ntohs(inetName->sin_port));
-		writeMemo(txt);
+		if (domain == AF_INET)
+		{
+			isprintf(txt, sizeof(txt),
+				"[i] tcpbso is running, spec=[%s:%d].", 
+				inet_ntoa(inetName->sin_addr), ntohs(portNbr));
+			writeMemo(txt);
+		}
+		else if (domain == AF_INET6)
+		{
+			char hostStr[INET6_ADDRSTRLEN];
+			inet_ntop(domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
+
+			isprintf(txt, sizeof(txt),
+				"[i] tcpbso is running, spec=[%s:%d].", 
+				hostStr, ntohs(portNbr));
+			writeMemo(txt);
+		}
 	}
 
 	while (!(sm_SemEnded(tcpbsoSemaphore(NULL))))
@@ -236,7 +260,7 @@ engine number>");
 		else
 		{
 			pthread_mutex_lock(&mutex);
-			bytesSent = sendBlockByTCP(&socketName, &flowSocket,
+			bytesSent = sendBlockByTCP((struct sockaddr *) &socketName, &flowSocket,
 					blockLength, block);
 			pthread_mutex_unlock(&mutex);
 			if (bytesSent < blockLength)	/*	Stop BSO.*/
