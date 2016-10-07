@@ -22,10 +22,12 @@ static int	udpComputeCsepName(char *endpointSpec, char *endpointName)
 {
 	unsigned short	portNbr;
 	unsigned int	ipAddress;
+	unsigned char	hostAddr[sizeof(struct in6_addr)];
+	int 	domain;
 	char		hostName[MAXHOSTNAMELEN + 1];
 
 	CHKERR(endpointName);
-	parseSocketSpec(endpointSpec, &portNbr, &ipAddress);
+	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
 	if (portNbr == 0)
 	{
 		portNbr = 2357;		/*	Default.		*/
@@ -53,9 +55,12 @@ static int	udpMamsInit(MamsInterface *tsif)
 {
 	unsigned short		portNbr;
 	unsigned int		ipAddress;
+	unsigned char	hostAddr[sizeof(struct in6_addr)];
+	int 	domain;
 	char			hostName[MAXHOSTNAMELEN + 1];
-	struct sockaddr		socketName;
+	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
+	struct sockaddr_in	*inet6Name;
 	socklen_t		nameLength;
 	int			fd;
 	char			endpointNameText[32];
@@ -63,7 +68,7 @@ static int	udpMamsInit(MamsInterface *tsif)
 	long			longfd;
 
 	CHKERR(tsif);
-	parseSocketSpec(tsif->endpointSpec, &portNbr, &ipAddress);
+	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
 	if (ipAddress == 0)
 	{
 		if ((ipAddress = getAddressOfHost()) == 0)
@@ -83,30 +88,40 @@ printf("parsed endpoint spec to port %hu address %u.\n", portNbr, ipAddress);
 	}
 
 	portNbr = htons(portNbr);
-	ipAddress = htonl(ipAddress);
 	memset((char *) &socketName, 0, sizeof socketName);
-	inetName = (struct sockaddr_in *) &socketName;
-	inetName->sin_family = AF_INET;
-	inetName->sin_port = portNbr;
-	memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &ipAddress, 4);
-	fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (domain == AF_INET)
+	{
+		inetName = (struct sockaddr_in *) &socketName;
+		inetName->sin_family = AF_INET;
+		inetName->sin_port = portNbr;
+		memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
+	}
+	else if (domain == AF_INET6)
+	{
+		inet6Name = (struct sockaddr_in6 *) &socketName;
+		inet6Name->sin6_family = AF_INET6;
+		inet6Name->sin6_port = portNbr;
+		memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
+	}
+	fd = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd < 0)
 	{
 		putSysErrmsg("udpts can't open MAMS SAP", NULL);
 		return -1;
 	}
 
-	nameLength = sizeof(struct sockaddr);
+	nameLength = sizeof(struct sockaddr_storage);
 	if (reUseAddress(fd)
-	|| bind(fd, &socketName, nameLength) < 0
-	|| getsockname(fd, &socketName, &nameLength) < 0)
+	|| bind(fd, (struct sockaddr *) &socketName, nameLength) < 0
+	|| getsockname(fd, (struct sockaddr *) &socketName, &nameLength) < 0)
 	{
 		putSysErrmsg("udpts can't initialize AMS SAP", NULL);
 		closesocket(fd);
 		return -1;
 	}
 
-	portNbr = inetName->sin_port;
+	// portNbr = inetName->sin_port;
+	
 	portNbr = ntohs(portNbr);
 	memcpy((char *) &ipAddress, (char *) &(inetName->sin_addr.s_addr), 4);
 	ipAddress = ntohl(ipAddress);
@@ -187,6 +202,8 @@ static int	udpAmsInit(AmsInterface *tsif, char *epspec)
 {
 	unsigned short		portNbr;
 	unsigned int		ipAddress;
+	unsigned char	hostAddr[sizeof(struct in6_addr)];
+	int 	domain;
 	char			hostName[MAXHOSTNAMELEN + 1];
 	struct sockaddr		socketName;
 	struct sockaddr_in	*inetName;
@@ -203,7 +220,7 @@ static int	udpAmsInit(AmsInterface *tsif, char *epspec)
 		epspec = NULL;	/*	Force default selection.	*/
 	}
 
-	parseSocketSpec(epspec, &portNbr, &ipAddress);
+	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
 	if (ipAddress == 0)
 	{
 		getNameOfHost(hostName, sizeof hostName);
