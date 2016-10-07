@@ -31,9 +31,11 @@ static int	dgrComputeCsepName(char *endpointSpec, char *endpointName)
 {
 	unsigned short	portNbr;
 	unsigned int	ipAddress;
+	unsigned char 	hostAddr[sizeof(struct in6_addr)];
+	int 			domain;
 
 	CHKERR(endpointName);
-	parseSocketSpec(endpointSpec, &portNbr, &ipAddress);
+	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
 	if (portNbr == 0)
 	{
 		portNbr = 2357;		/*	Default.		*/
@@ -52,13 +54,15 @@ static int	dgrMamsInit(MamsInterface *tsif)
 {
 	unsigned short	portNbr;
 	unsigned int	ipAddress;
+	unsigned char	hostAddr[sizeof(struct in6_addr)];
+	int 	domain;
 	Dgr		dgrSap;
 	char		endpointNameText[32];
 	int		eptLen;
 	DgrRC		rc;
 
 	CHKERR(tsif);
-	parseSocketSpec(tsif->endpointSpec, &portNbr, &ipAddress);
+	domain = parseSocketSpec(tsif->endpointSpec, &portNbr, hostAddr);
 	if (ipAddress == 0)
 	{
 		if ((ipAddress = getAddressOfHost()) == 0)
@@ -159,6 +163,8 @@ static int	dgrAmsInit(AmsInterface *tsif, char *epspec)
 {
 	unsigned short	portNbr;
 	unsigned int	ipAddress;
+	unsigned char	hostAddr[sizeof(struct in6_addr)];
+	int 	domain;
 	Dgr		dgrSap;
 	DgrRC		rc;
 	char		endpointNameText[32];
@@ -173,7 +179,7 @@ static int	dgrAmsInit(AmsInterface *tsif, char *epspec)
 		epspec = NULL;	/*	Force default selection.	*/
 	}
 
-	parseSocketSpec(epspec, &portNbr, &ipAddress);
+	domain = parseSocketSpec(epspec, &portNbr, hostAddr);
 	if (ipAddress == 0)
 	{
 		if ((ipAddress = getAddressOfHost()) == 0)
