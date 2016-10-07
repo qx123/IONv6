@@ -204,6 +204,8 @@ int	tcpAmsInit(AmsInterface *tsif, char *epspec)
 {
 	unsigned short		portNbr;
 	unsigned int		ipAddress;
+	unsigned char	hostAddr[sizeof(struct in6_addr)];
+	int 	domain;
 	TcptsSap		*sap;
 	socklen_t		buflen;
 	char			endpointNameText[32];
@@ -216,7 +218,7 @@ int	tcpAmsInit(AmsInterface *tsif, char *epspec)
 		epspec = NULL;	/*	Force default selection.	*/
 	}
 
-	parseSocketSpec(epspec, &portNbr, &ipAddress);
+	domain = parseSocketSpec(epspec, &portNbr, hostAddr);
 	if (ipAddress == 0)
 	{
 		if ((ipAddress = getAddressOfHost()) == 0)
