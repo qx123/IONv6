@@ -1068,6 +1068,7 @@ static RamsNetProtocol	parseGwEid(char *gwEidString, char **gwEid,
 	unsigned short	portNbr;
 	unsigned int	ipAddress;
 	unsigned char	hostAddr[sizeof(struct in6_addr)];
+	int 			domain;
 
 	if (gwEidString == NULL || gwEid == NULL)
 	{

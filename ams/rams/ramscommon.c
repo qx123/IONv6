@@ -1030,6 +1030,8 @@ static int	SendRPDUviaUdp(RamsGateway *gWay, RamsNode *ramsNode,
 	char			gwEid[256];
 	unsigned short		portNbr;
 	unsigned int		ipAddress;
+	unsigned char		hostAddr[sizeof(struct in6_addr)];
+	int 				domain;
 	struct sockaddr		socketName;
 	struct sockaddr_in	*inetName = (struct sockaddr_in *) &socketName;
 	char			errorMsg[128];
@@ -1037,7 +1039,7 @@ static int	SendRPDUviaUdp(RamsGateway *gWay, RamsNode *ramsNode,
 	LystElt			elt;
 
 	istrcpy(gwEid, ramsNode->gwEid, sizeof gwEid);
-	parseSocketSpec(gwEid, &portNbr, &ipAddress);
+	domain = parseSocketSpec(gwEid, &portNbr, hostAddr);
 	portNbr = htons(portNbr);
 	ipAddress = htonl(ipAddress);
 	memset((char *) &socketName, 0, sizeof socketName);
