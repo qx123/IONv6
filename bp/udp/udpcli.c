@@ -136,7 +136,9 @@ int	main(int argc, char *argv[])
 	unsigned int		hostNbr, *pHostNbr;
     unsigned char       hostAddr[sizeof(struct in6_addr)];
     int                 domain;
-	struct sockaddr		socketName;
+	struct sockaddr_storage		socketName;
+	struct sockaddr_in	*inetName;
+	struct sockaddr_in6 *inet6Name;
 	socklen_t		nameLength;
 	ReceiverThreadParms	rtp;
 	pthread_t		receiverThread;
@@ -178,7 +180,7 @@ int	main(int argc, char *argv[])
 	sdr_read(sdr, (char *) &protocol, duct.protocol, sizeof(ClProtocol));
 	sdr_exit_xn(sdr);
 	hostName = ductName;
-	if ((domain = parseSocketSpec(ductName, &portNbr, &hostAddr)) < 0)
+	if ((domain = parseSocketSpec(ductName, &portNbr, hostAddr)) < 0)
 	{
 		putErrmsg("Can't get IP/port for host.", hostName);
 		return -1;
@@ -197,23 +199,22 @@ int	main(int argc, char *argv[])
 
     if (domain == AF_INET)
     {
-        struct sockaddr_in * inetName = (struct sockaddr_in *) &socketName;
+        inetName = (struct sockaddr_in *) &socketName;
         memcpy((char *) pHostNbr, (char *) hostAddr, 4);
         inetName->sin_family = AF_INET;
         inetName->sin_port = portNbr;
         memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
         rtp.ductSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-        nameLength = sizeof(struct sockaddr_in);
     }
     else if (domain == AF_INET6)
     {
-        struct sockaddr_in6 * inet6Name = (struct sockaddr_in6 *) &socketName;
+        inet6Name = (struct sockaddr_in6 *) &socketName;
         inetName->sin6_family = AF_INET6;
         inetName->sin6_port = portNbr;
         memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
         rtp.ductSocket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-        nameLength = sizeof(struct sockaddr_in6);
     }
+	nameLength = sizeof(struct sockaddr_storage);
 	if (rtp.ductSocket < 0)
 	{
 		putSysErrmsg("Can't open UDP socket", NULL);
@@ -246,14 +247,26 @@ int	main(int argc, char *argv[])
 
 	/*	Now sleep until interrupted by SIGTERM, at which point
 	 *	it's time to stop the induct.				*/
-
 	{
-		char	txt[500];
+		char    txt[500];
 
-		isprintf(txt, sizeof(txt),
-			"[i] udpcli is running, spec=[%s:%d].", 
-			inet_ntoa(inetName->sin_addr), ntohs(portNbr));
-		writeMemo(txt);
+		if (domain == AF_INET)
+		{
+			isprintf(txt, sizeof(txt),
+				"[i] udpcli is running, spec=[%s:%d].", 
+				inet_ntoa(inetName->sin_addr), ntohs(portNbr));
+			writeMemo(txt);
+		}
+		else if (domain == AF_INET6)
+		{
+			char hostStr[INET6_ADDRSTRLEN];
+			inet_ntop(domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
+
+			isprintf(txt, sizeof(txt),
+				"[i] udpcli is running, spec=[%s:%d].", 
+				hostStr, ntohs(portNbr));
+			writeMemo(txt);
+		}
 	}
 
 	ionPauseMainThread(-1);
@@ -265,7 +278,7 @@ int	main(int argc, char *argv[])
 	/*	Wake up the receiver thread by sending it a 1-byte
 	 *	datagram.						*/
 
-	fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	fd = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd >= 0)
 	{
 		oK(isendto(fd, &quit, 1, 0, (struct sockaddr *) &socketName,
