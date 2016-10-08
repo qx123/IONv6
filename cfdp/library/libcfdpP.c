@@ -1149,16 +1149,16 @@ Object	addEntity(uvast entityId, char *protocolName, char *endpointName,
 		entity.utLayer = UtTcp;
 		entity.domain = parseSocketSpec(endpointName, &entity.portNbr,
 				entity.hostAddr);
-		if (entity.ipAddress == 0)
-		{
-			entity.ipAddress = getAddressOfHost();
-			if (entity.ipAddress == 0)
-			{
-				putErrmsg("No own IP address for CFDP entity.",
-						NULL);
-				return 0;
-			}
-		}
+		// if (entity.ipAddress == 0)
+		// {
+		// 	entity.ipAddress = getAddressOfHost();
+		// 	if (entity.ipAddress == 0)
+		// 	{
+		// 		putErrmsg("No own IP address for CFDP entity.",
+		// 				NULL);
+		// 		return 0;
+		// 	}
+		// }
 	}
 	else
 	{
@@ -1230,16 +1230,16 @@ int	changeEntity(uvast entityId, char *protocolName, char *endpointName,
 		entity.utLayer = UtTcp;
 		entity.domain = parseSocketSpec(endpointName, &entity.portNbr,
 				entity.hostAddr);
-		if (entity.ipAddress == 0)
-		{
-			entity.ipAddress = getAddressOfHost();
-			if (entity.ipAddress == 0)
-			{
-				putErrmsg("No own IP address for CFDP entity.",
-						NULL);
-				return -1;
-			}
-		}
+		// if (entity.ipAddress == 0)
+		// {
+		// 	entity.ipAddress = getAddressOfHost();
+		// 	if (entity.ipAddress == 0)
+		// 	{
+		// 		putErrmsg("No own IP address for CFDP entity.",
+		// 				NULL);
+		// 		return -1;
+		// 	}
+		// }
 	}
 	else
 	{

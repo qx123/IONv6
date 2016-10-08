@@ -202,8 +202,14 @@ int	main(int argc, char *argv[])
 	int 			domain;
 	char			ownHostName[MAXHOSTNAMELEN];
 	struct sockaddr_storage		ownSockName;
+	struct sockaddr_in  *ownInetName;
+	struct sockaddr_in6 *ownInet6Name;
 	struct sockaddr_storage		bindSockName;
+	struct sockaddr_in  *bindInetName;
+	struct sockaddr_in6 *bindInet6Name;
 	struct sockaddr_storage		peerSockName;
+	struct sockaddr_in  *peerInetName;
+	struct sockaddr_in6 *peerInet6Name;
 	socklen_t		nameLength;
 	ReceiverThreadParms	rtp;
 	pthread_t		receiverThread;
@@ -280,7 +286,7 @@ int	main(int argc, char *argv[])
 	memset((char *) &peerSockName, 0, sizeof peerSockName);
 	if (domain == AF_INET)
 	{
-		struct sockaddr_in *peerInetName = (struct sockaddr_in *) &peerSockName;
+		peerInetName = (struct sockaddr_in *) &peerSockName;
 		peerInetName->sin_family = AF_INET;
 		peerInetName->sin_port = portNbr;
 		memcpy((char *) &(peerInetName->sin_addr.s_addr),
@@ -288,7 +294,7 @@ int	main(int argc, char *argv[])
 	}
 	else if (domain ==AF_INET6)
 	{
-		struct sockaddr_in6 *peerInet6Name = (struct sockaddr_in6 *) &peerSockName;
+		peerInet6Name = (struct sockaddr_in6 *) &peerSockName;
 		peerInet6Name->sin6_family = AF_INET6;
 		peerInet6Name->sin6_port = portNbr;
 		memcpy((char *) &(peerInet6Name->sin6_addr.s6_addr),
@@ -303,7 +309,7 @@ int	main(int argc, char *argv[])
 	// bindaddr: 0.0.0.0 or ::0
 	if (domain == AF_INET)
 	{
-		struct sockaddr_in *bindInetName = (struct sockaddr_in *) &bindSockName;
+		bindInetName = (struct sockaddr_in *) &bindSockName;
 		bindInetName->sin_family = AF_INET;
 		bindInetName->sin_port = 0;	/*	Let O/S select it.	*/
 		memcpy((char *) &(bindInetName->sin_addr.s_addr),
@@ -311,7 +317,7 @@ int	main(int argc, char *argv[])
 	}
 	else if (domain == AF_INET6)
 	{
-		struct sockaddr_in6 *bindInet6Name = (struct sockaddr_in6 *) &bindSockName;
+		bindInet6Name = (struct sockaddr_in6 *) &bindSockName;
 		bindInet6Name->sin6_family = AF_INET6;
 		bindInet6Name->sin6_port = 0;	/*	Let O/S select it.	*/
 		memcpy((char *) &(bindInet6Name->sin6_addr.s6_addr),
@@ -322,24 +328,13 @@ int	main(int argc, char *argv[])
 	 *	datagrams to the peer LTP engine and receiving
 	 *	datagrams from the peer LTP engine.			*/
 
-	if (domain == AF_INET)
+	rtp.linkSocket = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
+	if (rtp.linkSocket < 0)
 	{
-		rtp.linkSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-		if (rtp.linkSocket < 0)
-		{
-			putSysErrmsg("LSO can't open UDP socket", NULL);
-			return 1;
-		}
+		putSysErrmsg("LSO can't open UDP socket", NULL);
+		return 1;
 	}
-	else if (domain == AF_INET6)
-	{
-		rtp.linkSocket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-		if (rtp.linkSocket < 0)
-		{
-			putSysErrmsg("LSO can't open UDP socket", NULL);
-			return 1;
-		}
-	}
+	
 
 	/*	Bind the socket to own socket address so that we can
 	 *	send a 1-byte datagram to that address to shut down
@@ -460,7 +455,7 @@ int	main(int argc, char *argv[])
 		portNbr = bindInetName->sin_port;	/*	From binding.	*/
 		// ipAddress = getInternetAddress(ownHostName);
 		// ipAddress = htonl(ipAddress);
-		struct sockaddr_in *ownInetName = (struct sockaddr_in *) &ownSockName;
+		ownInetName = (struct sockaddr_in *) &ownSockName;
 		ownInetName->sin_family = AF_INET;
 		ownInetName->sin_port = portNbr;
 		memcpy((char *) &(ownInetName->sin_addr),
@@ -472,7 +467,7 @@ int	main(int argc, char *argv[])
 		portNbr = bindInet6Name->sin6_port;	/*	From binding.	*/
 		// ipAddress = getInternetAddress(ownHostName);
 		// ipAddress = htonl(ipAddress);
-		struct sockaddr_in6 * ownInet6Name = (struct sockaddr_in6 *) &ownSockName;
+		ownInet6Name = (struct sockaddr_in6 *) &ownSockName;
 		ownInet6Name->sin6_family = AF_INET6;
 		ownInet6Name->sin6_port = portNbr;
 		memcpy((char *) &(ownInet6Name->sin6_addr.s6_addr),

@@ -94,7 +94,7 @@ ReceiverThreadParms* get_first_thread(Lyst *list)
 return (ReceiverThreadParms*)lyst_data(lyst_first(*list));
 }
 
-int bindDCCPsock(int* sock, struct sockaddr* socketName)
+int bindDCCPsock(int* sock, struct sockaddr* socketName, int domain)
 {
 	socklen_t nameLength;
 
@@ -103,7 +103,7 @@ int bindDCCPsock(int* sock, struct sockaddr* socketName)
 		return -1;
 	}
 
-	if ((*sock = socket(AF_INET, SOCK_DCCP, IPPROTO_DCCP)) < 0 )
+	if ((*sock = socket(domain, SOCK_DCCP, IPPROTO_DCCP)) < 0 )
 	{
 		putSysErrmsg("dccpcli can't open DCCP socket. This probably means DCCP is not supported on your system.", NULL);
 		return -1;
@@ -115,7 +115,7 @@ int bindDCCPsock(int* sock, struct sockaddr* socketName)
 		return -1;
 	}
 
-	nameLength = sizeof(struct sockaddr);
+	nameLength = sizeof(struct sockaddr_storage);
 	if (bind(*sock, socketName, nameLength) < 0)
 	{
 		putSysErrmsg("dccpcli can't initialize socket.", "bind()");
@@ -354,6 +354,8 @@ int	main(int argc, char *argv[])
 	unsigned short		portNbr = 0;
     unsigned char            hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
+	struct sockaddr_in	*inetName;
+	struct sockaddr_in6 *inet6Name;
     int             domain;
 	ListenerThreadParms	rtp;
 	pthread_t		listenerThread;
@@ -409,14 +411,14 @@ int	main(int argc, char *argv[])
 	memset((char *) &socketName, 0, sizeof socketName);
     if (domain == AF_INET)
     {
-        struct sockaddr_in *inetName = (struct sockaddr_in *) &socketName;
+        inetName = (struct sockaddr_in *) &socketName;
         inetName->sin_family = AF_INET;
         inetName->sin_port = portNbr;
         memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
     }
     else if(domain == AF_INET6)
     {
-        struct sockaddr_in6 *inet6Name = (struct sockaddr_in6 *) &socketName;
+        inet6Name = (struct sockaddr_in6 *) &socketName;
         inet6Name->sin6_family = AF_INET6;
         inet6Name->sin6_port = portNbr;
         memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);

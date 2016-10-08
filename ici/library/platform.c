@@ -3322,6 +3322,8 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
     unsigned int        hostNbr, *pHostNbr;
     unsigned char       hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
+	struct sockaddr_in 	*inetName;
+	struct sockaddr_in6 *inet6Name;
 	char			dottedString[16];
 	char			socketTag[32];
     int domain;
@@ -3340,9 +3342,15 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
 	/*	Construct socket name.					*/
 
 	domain = parseSocketSpec(socketSpec, &portNbr, hostAddr);
+
+	if (portNbr == 0)
+	{
+		portNbr = defaultPort;
+	}
+
     if (domain == AF_INET)
     {
-        struct sockaddr_in *inetName = (struct sockaddr_in *)&socketName;
+        inetName = (struct sockaddr_in *)&socketName;
         memcpy((char *) pHostNbr, (char *) hostAddr, 4);
     
         if (hostNbr == 0)
@@ -3351,10 +3359,6 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
             return 0;
         }
 
-        if (portNbr == 0)
-        {
-            portNbr = defaultPort;
-        }
 
         // printDottedString(hostNbr, dottedString);
         isprintf(socketTag, sizeof socketTag, "%s:%hu", dottedString, portNbr);
@@ -3363,23 +3367,18 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
         inetName->sin_family = AF_INET;
         inetName->sin_port = portNbr;
         memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
-        *sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     }
 
     else if (domain == AF_INET6)
     {
         struct sockaddr_in6 *inet6Name = (struct sockaddr_in6 *)&socketName;
 
-        if (portNbr == 0)
-        {
-            portNbr = defaultPort;
-        }
         portNbr = htons(portNbr);
         inet6Name->sin6_family = AF_INET6;
         inet6Name->sin6_port = portNbr;
         memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
-        *sock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
     }
+	*sock = socket(domain, SOCK_STREAM, IPPROTO_TCP);
 
 	if (*sock < 0)
 	{

@@ -102,7 +102,9 @@ int	main(int argc, char *argv[])
 	LtpVdb			*vdb;
 	unsigned short		portNbr = 0;
 	unsigned char 		hostAddr[sizeof(struct sockaddr_in6)] = {0};
-	struct sockaddr		socketName;
+	struct sockaddr_storage		socketName;
+	struct sockaddr_in  *inetName;
+	struct sockaddr_in6 *inet6Name;
 	ReceiverThreadParms	rtp;
 	socklen_t		nameLength;
 	pthread_t		receiverThread;
@@ -148,34 +150,26 @@ int	main(int argc, char *argv[])
 	memset((char *) &socketName, 0, sizeof socketName);
 	if (domain == AF_INET)
 	{
-		struct sockaddr_in * inetName = (struct sockaddr_in *) &socketName;
+		inetName = (struct sockaddr_in *) &socketName;
 		inetName->sin_family = AF_INET;
 		inetName->sin_port = portNbr;
 		memcpy((char *) &(inetName->sin_addr.s_addr), (char *) &hostAddr, 4);
-		rtp.linkSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-		if (rtp.linkSocket < 0)
-		{
-			putSysErrmsg("LSI can't open UDP socket", NULL);
-			return -1;
-		}
-
-		nameLength = sizeof(struct sockaddr_in);
 	}
 	else if (domain == AF_INET6)
 	{
-		struct sockaddr_in6 * inet6Name = (struct sockaddr_in6 *) &socketName;
+		inet6Name = (struct sockaddr_in6 *) &socketName;
 		inet6Name->sin6_family = AF_INET6;
 		inet6Name->sin6_port = portNbr;
 		memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) &hostAddr, 16);
-		rtp.linkSocket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-		if (rtp.linkSocket < 0)
-		{
-			putSysErrmsg("LSI can't open UDP socket", NULL);
-			return -1;
-		}
-
-		nameLength = sizeof(struct sockaddr_in6);
 	}
+	rtp.linkSocket = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
+	if (rtp.linkSocket < 0)
+	{
+		putSysErrmsg("LSI can't open UDP socket", NULL);
+		return -1;
+	}
+
+	nameLength = sizeof(struct sockaddr_storage);
 
 		if (reUseAddress(rtp.linkSocket)
 	|| bind(rtp.linkSocket, (struct sockaddr *) &socketName, nameLength) < 0
@@ -235,10 +229,7 @@ int	main(int argc, char *argv[])
 	/*	Wake up the receiver thread by sending it a 1-byte
 	 *	datagram.						*/
 
-	if (domain == AF_INET)
-		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    else
-		fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	fd = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd >= 0)
 	{
 		isendto(fd, &quit, 1, 0, (struct sockaddr *) &socketName, sizeof(struct sockaddr));

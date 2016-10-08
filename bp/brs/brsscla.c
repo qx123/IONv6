@@ -733,7 +733,7 @@ static int	run_brsscla(char *ductName, int baseDuctNbr, int lastDuctNbr,
 	sdr_read(sdr, (char *) &protocol, induct.protocol, sizeof(ClProtocol));
 	sdr_exit_xn(sdr);
 	hostName = ductName;
-	if ((domain = parseSocketSpec(ductName, &portNbr, hostAddr)) < 0)
+	if ((atp.domain = parseSocketSpec(ductName, &portNbr, hostAddr)) < 0)
 	{
 		putErrmsg("Can't get IP/port for host.", hostName);
 		return 1;
@@ -755,7 +755,6 @@ static int	run_brsscla(char *ductName, int baseDuctNbr, int lastDuctNbr,
         atp.inetName->sin_family = AF_INET;
         atp.inetName->sin_port = portNbr;
         memcpy((char *) &(atp.inetName->sin_addr.s_addr), (char *) hostAddr, 4);
-        atp.ductSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     }
     else if (domain == AF_INET6)
     {
@@ -763,8 +762,8 @@ static int	run_brsscla(char *ductName, int baseDuctNbr, int lastDuctNbr,
         atp.inet6Name->sin6_family = AF_INET6;
         atp.inet6Name->sin6_port = portNbr;
         memcpy((char *) &(atp.inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
-        atp.ductSocket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
     }
+	atp.ductSocket = socket(atp.domain, SOCK_STREAM, IPPROTO_TCP);
 	if (atp.ductSocket < 0)
 	{
 		putSysErrmsg("Can't open TCP socket", NULL);

@@ -55,6 +55,8 @@ int	main(int argc, char *argv[])
 	unsigned int		hostNbr, *pHostNbr;
     unsigned char       hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
+	struct sockaddr_in	*inetName;
+	struct sockaddr_in6 *inet6Name;
 	Object			bundleZco;
 	BpExtendedCOS		extendedCOS;
 	char			destDuctName[MAX_CL_DUCT_NAME_LEN + 1];
@@ -143,7 +145,7 @@ int	main(int argc, char *argv[])
 
         if (domain == AF_INET)
         {
-            struct sockaddr_in *inetName = (struct sockaddr_in *) &socketName;
+            inetName = (struct sockaddr_in *) &socketName;
             pHostNbr = &hostNbr;
             memcpy((char *) pHostNbr, (char *) hostAddr, 4);
             if (hostNbr == 0)	/*	Can't send bundle.	*/
@@ -167,7 +169,7 @@ int	main(int argc, char *argv[])
         }
         else if (domain == AF_INET6)
         {
-            struct sockaddr_in6 *inet6Name = (struct sockaddr_in6 *) &socketName;
+            inet6Name = (struct sockaddr_in6 *) &socketName;
             pHostNbr = &hostNbr;
             memcpy((char *) pHostNbr, (char *) hostAddr, 4);
             if ((struct in6_addr *) hostAddr == in6addr_any)	/*	Can't send bundle.	*/

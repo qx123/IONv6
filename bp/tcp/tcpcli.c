@@ -1761,7 +1761,7 @@ static void	*spawnReceivers(void *parm)
 
 	ServerThreadParms	*stp = (ServerThreadParms *) parm;
 	long			newSocket;
-	struct sockaddr		socketName;
+	struct sockaddr_storage		socketName;
 	socklen_t		socknamelen;
 	LystElt			elt;
 
@@ -1773,7 +1773,7 @@ static void	*spawnReceivers(void *parm)
 	while (stp->running)
 	{
 		socknamelen = sizeof socketName;
-		newSocket = accept(stp->serverSocket, &socketName,
+		newSocket = accept(stp->serverSocket, (struct sockaddr *) &socketName,
 				&socknamelen);
 		if (newSocket < 0)
 		{
@@ -2616,6 +2616,8 @@ int	main(int argc, char *argv[])
 	unsigned int		*pHostNbr;
 	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
+	struct sockaddr_in	*inetName;
+	struct sockaddr_in6 *inet6Name;
 	int 				domain;
 	ServerThreadParms	stp;
 	socklen_t		nameLength;
@@ -2638,7 +2640,7 @@ int	main(int argc, char *argv[])
 		return 1;
 	}
 
-	if ((domain = parseSocketSpec(ductName, &portNbr, &hostAddr)) < 0)
+	if ((domain = parseSocketSpec(ductName, &portNbr, hostAddr)) < 0)
 	{
 		writeMemoNote("[?] tcpcli: can't get induct IP address",
 				ductName);
@@ -2697,40 +2699,29 @@ int	main(int argc, char *argv[])
 
 	if (domain == AF_INET)
 	{
-		struct sockaddr_in *inetName = (struct sockaddr_in *) &(socketName);
+		inetName = (struct sockaddr_in *) &(socketName);
 		inetName->sin_family = AF_INET;
 		inetName->sin_port = portNbr;
 		memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
-		stp.serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if (stp.serverSocket < 0)
-		{
-			putSysErrmsg("Can't open TCP server socket", NULL);
-			lyst_destroy(backlog);
-			lyst_destroy(neighbors);
-			return 1;
-		}
-
-		nameLength = sizeof(struct sockaddr_in);
-
 	}
 	else if (domain == AF_INET6)
 	{
-		struct sockaddr_in6 *inet6Name = (struct sockaddr_in6 *) &(socketName);
+		inet6Name = (struct sockaddr_in6 *) &(socketName);
 		inet6Name->sin6_family = AF_INET6;
 		inet6Name->sin6_port = portNbr;
 		memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
-		stp.serverSocket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-		if (stp.serverSocket < 0)
-		{
-			putSysErrmsg("Can't open TCP server socket", NULL);
-			lyst_destroy(backlog);
-			lyst_destroy(neighbors);
-			return 1;
-		}
-
-		nameLength = sizeof(struct sockaddr_in6);
-
 	}
+	stp.serverSocket = socket(domain, SOCK_STREAM, IPPROTO_TCP);
+	if (stp.serverSocket < 0)
+	{
+		putSysErrmsg("Can't open TCP server socket", NULL);
+		lyst_destroy(backlog);
+		lyst_destroy(neighbors);
+		return 1;
+	}
+
+	nameLength = sizeof(struct sockaddr_storage);
+
 		if (reUseAddress(stp.serverSocket)
 	|| bind(stp.serverSocket, (struct sockaddr *) &socketName, nameLength) < 0
 	|| listen(stp.serverSocket, 5) < 0
@@ -2790,16 +2781,28 @@ int	main(int argc, char *argv[])
 
 	/*	Now sleep until interrupted by SIGTERM, at which point
 	 *	it's time to stop the CLA.				*/
-
 	{
-		char	txt[500];
+		char    txt[500];
 
-		isprintf(txt, sizeof(txt),
+		if (domain == AF_INET)
+		{
+			isprintf(txt, sizeof(txt),
 				"[i] tcpcli is running [%s:%d].", 
-				inet_ntoa(inetName->sin_addr),
-				ntohs(inetName->sin_port));
-		writeMemo(txt);
+				inet_ntoa(inetName->sin_addr), ntohs(portNbr));
+			writeMemo(txt);
+		}
+		else if (domain == AF_INET6)
+		{
+			char hostStr[INET6_ADDRSTRLEN];
+			inet_ntop(domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
+
+			isprintf(txt, sizeof(txt),
+				"[i] tcpcli is running [%s:%d].", 
+				hostStr, ntohs(portNbr));
+			writeMemo(txt);
+		}
 	}
+
 
 	ionPauseMainThread(-1);
 

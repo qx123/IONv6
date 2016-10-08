@@ -196,9 +196,11 @@ int	main(int argc, char *argv[])
 	struct sockaddr_in	*ownInetName;
 	struct sockaddr_in6	*ownInetName;
 	struct sockaddr_storage		bindSockName;
-	struct sockaddr_in6	*bindInetName;
+	struct sockaddr_in	*bindInetName;
+	struct sockaddr_in6	*bindInet6Name;
 	struct sockaddr_storage		peerSockName;
-	struct sockaddr_in6	*peerInetName;
+	struct sockaddr_in	*peerInetName;
+	struct sockaddr_in6	*peerInet6Name;
 	int 			domain;
 	socklen_t		nameLength;
 	ReceiverThreadParms	rtp;
