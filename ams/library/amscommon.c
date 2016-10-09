@@ -1068,7 +1068,7 @@ static RamsNetProtocol	parseGwEid(char *gwEidString, char **gwEid,
 	unsigned short	portNbr;
 	unsigned int	ipAddress;
 	unsigned char	hostAddr[sizeof(struct in6_addr)];
-	int 			domain;
+	// int 			domain;
 
 	if (gwEidString == NULL || gwEid == NULL)
 	{
@@ -1101,7 +1101,7 @@ static RamsNetProtocol	parseGwEid(char *gwEidString, char **gwEid,
 		/*	Must convert to canonical hostnbr:portnbr
 		 *	form to enable recvfrom lookup to succeed.	*/
 
-		domain = parseSocketSpec(*gwEid, &portNbr, hostAddr);
+		parseSocketSpec(*gwEid, &portNbr, hostAddr);
 		isprintf(gwEidBuffer, MAX_GW_EID + 1, "%u:%hu", ipAddress,
 				portNbr);
 		*gwEid = gwEidBuffer;
