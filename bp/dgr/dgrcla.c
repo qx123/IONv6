@@ -49,6 +49,8 @@ static void	*sendBundles(void *parm)
 	char			destDuctName[MAX_CL_DUCT_NAME_LEN + 1];
 	unsigned short		portNbr;
 	unsigned int		hostNbr;
+	unsigned char 		hostAddr[sizeof(struct in6_addr)];
+	int 				domain;
 	int			failedTransmissions = 0;
 	ZcoReader		reader;
 	int			bytesToSend;
@@ -101,14 +103,16 @@ static void	*sendBundles(void *parm)
 			continue;
 		}
 
-		parseSocketSpec(destDuctName, &portNbr, &hostNbr);
+		domain = parseSocketSpec(destDuctName, &portNbr, hostAddr);
 		if (portNbr == 0)
 		{
 			portNbr = DGRCLA_PORT_NBR;
 		}
 
 		CHKNULL(sdr_begin_xn(sdr));
-		if (hostNbr == 0)		/*	Can't send it.	*/
+		// if (hostNbr == 0)		/*	Can't send it.	*/
+		if ((domain == AF_INET && (unsigned int *) hostAddr == INADDR_ANY)
+			 || (domain == AF_INET6 && memcmp(hostAddr, in6_addr, 16) == 0))
 		{
 			failedTransmissions++;
 			zco_destroy(sdr, bundleZco);

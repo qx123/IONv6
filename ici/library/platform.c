@@ -3371,7 +3371,7 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
 
     else if (domain == AF_INET6)
     {
-        struct sockaddr_in6 *inet6Name = (struct sockaddr_in6 *)&socketName;
+        inet6Name = (struct sockaddr_in6 *)&socketName;
 
         portNbr = htons(portNbr);
         inet6Name->sin6_family = AF_INET6;
