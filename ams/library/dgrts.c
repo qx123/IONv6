@@ -30,7 +30,7 @@ static void	handleNotice(DgrRC rc, Dgr dgrSap, unsigned short portNbr,
 static int	dgrComputeCsepName(char *endpointSpec, char *endpointName)
 {
 	unsigned short	portNbr;
-	unsigned int	ipAddress;
+	unsigned int	ipAddress = 0;
 	unsigned char 	hostAddr[sizeof(struct in6_addr)];
 	int 			domain;
 
@@ -38,12 +38,12 @@ static int	dgrComputeCsepName(char *endpointSpec, char *endpointName)
 	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
 	// error: variable 'domain' set but not used
 	printf("domain: %d\n", domain);
-	
+
 	if (portNbr == 0)
 	{
 		portNbr = 2357;		/*	Default.		*/
 	}
-
+	// TODO
 	if (ipAddress == 0)		/*	Default to local host.	*/
 	{
 		ipAddress = getAddressOfHost();
