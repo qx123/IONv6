@@ -36,6 +36,9 @@ static int	dgrComputeCsepName(char *endpointSpec, char *endpointName)
 
 	CHKERR(endpointName);
 	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
+	// error: variable 'domain' set but not used
+	printf("domain: %d\n", domain);
+	
 	if (portNbr == 0)
 	{
 		portNbr = 2357;		/*	Default.		*/
@@ -65,7 +68,7 @@ static int	dgrMamsInit(MamsInterface *tsif)
 	domain = parseSocketSpec(tsif->endpointSpec, &portNbr, hostAddr);
 	// error: variable 'domain' set but not used
 	printf("domain: %d\n", domain);
-	
+
 	if (ipAddress == 0)
 	{
 		if ((ipAddress = getAddressOfHost()) == 0)
