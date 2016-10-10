@@ -63,6 +63,9 @@ static int	dgrMamsInit(MamsInterface *tsif)
 
 	CHKERR(tsif);
 	domain = parseSocketSpec(tsif->endpointSpec, &portNbr, hostAddr);
+	// error: variable 'domain' set but not used
+	printf("domain: %d\n", domain);
+	
 	if (ipAddress == 0)
 	{
 		if ((ipAddress = getAddressOfHost()) == 0)
@@ -180,6 +183,9 @@ static int	dgrAmsInit(AmsInterface *tsif, char *epspec)
 	}
 
 	domain = parseSocketSpec(epspec, &portNbr, hostAddr);
+	// error: variable 'domain' set but not used
+	printf("domain: %d\n", domain);
+
 	if (ipAddress == 0)
 	{
 		if ((ipAddress = getAddressOfHost()) == 0)
