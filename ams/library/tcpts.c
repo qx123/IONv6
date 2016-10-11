@@ -203,7 +203,7 @@ static int	tcpSendMams(MamsEndpoint *ep, MamsInterface *tsif, char *msg,
 int	tcpAmsInit(AmsInterface *tsif, char *epspec)
 {
 	unsigned short		portNbr;
-	unsigned int		ipAddress;
+	unsigned int		ipAddress = 0;
 	unsigned char	hostAddr[sizeof(struct in6_addr)];
 	// int 	domain;
 	TcptsSap		*sap;
