@@ -460,7 +460,6 @@ int	main(int argc, char *argv[])
 		ownInetName->sin_port = portNbr;
 		memcpy(&(ownInetName->sin_addr),
 				&(((struct sockaddr_in *) (ownSockAddr->ai_addr))->sin_addr), 4);
-		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	}
 	else if (domain == AF_INET6)
 	{
@@ -472,8 +471,8 @@ int	main(int argc, char *argv[])
 		ownInet6Name->sin6_port = portNbr;
 		memcpy(&(ownInet6Name->sin6_addr.s6_addr),
 				&(((struct sockaddr_in6 *) (ownSockAddr->ai_addr))->sin6_addr), 16);
-		fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	}
+	fd = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 
 	/*	Wake up the receiver thread by sending it a 1-byte
 	 *	datagram.						*/
