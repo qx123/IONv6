@@ -109,7 +109,7 @@ int	main(int argc, char *argv[])
 	socklen_t		nameLength;
 	pthread_t		receiverThread;
 	int			fd;
-	int 		domain;
+	int 		domain = AF_INET6;
 	char			quit = '\0';
 
 	/*	Note that ltpadmin must be run before the first
