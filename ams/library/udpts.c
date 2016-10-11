@@ -14,14 +14,14 @@
 
 typedef struct
 {
-	unsigned int	ipAddress;
+	unsigned int	ipAddress = 0;
 	unsigned short	portNbr;
 } UdpTsep;
 
 static int	udpComputeCsepName(char *endpointSpec, char *endpointName)
 {
 	unsigned short	portNbr;
-	unsigned int	ipAddress;
+	unsigned int	ipAddress = 0;
 	unsigned char	hostAddr[sizeof(struct in6_addr)];
 	// int 	domain;
 	char		hostName[MAXHOSTNAMELEN + 1];
@@ -55,7 +55,7 @@ static int	udpComputeCsepName(char *endpointSpec, char *endpointName)
 static int	udpMamsInit(MamsInterface *tsif)
 {
 	unsigned short		portNbr;
-	unsigned int		ipAddress;
+	unsigned int		ipAddress = 0;
 	unsigned char	hostAddr[sizeof(struct in6_addr)];
 	int 	domain;
 	char			hostName[MAXHOSTNAMELEN + 1];
@@ -202,7 +202,7 @@ message", NULL);
 static int	udpAmsInit(AmsInterface *tsif, char *epspec)
 {
 	unsigned short		portNbr;
-	unsigned int		ipAddress;
+	unsigned int		ipAddress = 0;
 	unsigned char	hostAddr[sizeof(struct in6_addr)];
 	// int 	domain;
 	char			hostName[MAXHOSTNAMELEN + 1];
