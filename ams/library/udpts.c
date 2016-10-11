@@ -69,7 +69,7 @@ static int	udpMamsInit(MamsInterface *tsif)
 	long			longfd;
 
 	CHKERR(tsif);
-	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
+	domain = parseSocketSpec(tsif->endpointSpec, &portNbr, hostAddr);
 	if (ipAddress == 0)
 	{
 		if ((ipAddress = getAddressOfHost()) == 0)
