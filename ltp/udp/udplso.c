@@ -199,7 +199,7 @@ int	main(int argc, char *argv[])
 	unsigned char 		bindIpAddr[sizeof(struct sockaddr_in6)] = {0};
 	unsigned char 		hostAddr[sizeof(struct sockaddr_in6)];
 	int 			domain;
-	// char			ownHostName[MAXHOSTNAMELEN];
+	char			ownHostName[MAXHOSTNAMELEN];
 	struct sockaddr_storage		ownSockName;
 	struct sockaddr_in  *ownInetName;
 	struct sockaddr_in6 *ownInet6Name;
