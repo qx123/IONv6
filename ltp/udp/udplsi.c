@@ -133,7 +133,7 @@ int	main(int argc, char *argv[])
 
 	if (endpointSpec)
 	{
-		if(domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr) < 0)
+		if((domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr)) < 0)
 		{
 			putErrmsg("Can't get IP/port for endpointSpec.",
 					endpointSpec);
