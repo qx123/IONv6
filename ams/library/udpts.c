@@ -23,11 +23,12 @@ static int	udpComputeCsepName(char *endpointSpec, char *endpointName)
 	unsigned short	portNbr;
 	unsigned int	ipAddress;
 	unsigned char	hostAddr[sizeof(struct in6_addr)];
-	int 	domain;
+	// int 	domain;
 	char		hostName[MAXHOSTNAMELEN + 1];
 
 	CHKERR(endpointName);
-	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
+	parseSocketSpec(endpointSpec, &portNbr, hostAddr);
+	// domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
 	if (portNbr == 0)
 	{
 		portNbr = 2357;		/*	Default.		*/
@@ -60,7 +61,7 @@ static int	udpMamsInit(MamsInterface *tsif)
 	char			hostName[MAXHOSTNAMELEN + 1];
 	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
-	struct sockaddr_in	*inet6Name;
+	struct sockaddr_in6	*inet6Name;
 	socklen_t		nameLength;
 	int			fd;
 	char			endpointNameText[32];
@@ -203,7 +204,7 @@ static int	udpAmsInit(AmsInterface *tsif, char *epspec)
 	unsigned short		portNbr;
 	unsigned int		ipAddress;
 	unsigned char	hostAddr[sizeof(struct in6_addr)];
-	int 	domain;
+	// int 	domain;
 	char			hostName[MAXHOSTNAMELEN + 1];
 	struct sockaddr		socketName;
 	struct sockaddr_in	*inetName;
@@ -220,7 +221,7 @@ static int	udpAmsInit(AmsInterface *tsif, char *epspec)
 		epspec = NULL;	/*	Force default selection.	*/
 	}
 
-	domain = parseSocketSpec(endpointSpec, &portNbr, hostAddr);
+	parseSocketSpec(epspec, &portNbr, hostAddr);
 	if (ipAddress == 0)
 	{
 		getNameOfHost(hostName, sizeof hostName);
