@@ -150,7 +150,7 @@ int	sendSegmentByUDP(int linkSocket, char *from, int length,
 				char			memoBuf[1000];
 				if (domain ==  AF_INET)
 				{
-					struct sockaddr_in	*saddr = destAddr;
+					struct sockaddr_in	*saddr = (struct sockaddr_in *) destAddr;
 
 					isprintf(memoBuf, sizeof(memoBuf),
 						"udplso sendto() error, dest=[%s:%d], \
@@ -161,9 +161,9 @@ int	sendSegmentByUDP(int linkSocket, char *from, int length,
 				}
 				else if (domain == AF_INET6)
 				{
-					struct sockaddr_in6	*saddr = destAddr;
+					struct sockaddr_in6	*saddr = (struct sockaddr_in6 *) destAddr;
 					char hostStr[INET6_ADDRSTRLEN];
-					inet_ntop(domain, saddr->sin6_addr, hostStr, INET6_ADDRSTRLEN);
+					inet_ntop(domain, (void *) &(saddr->sin6_addr), hostStr, INET6_ADDRSTRLEN);
 					isprintf(memoBuf, sizeof(memoBuf),
 						"udplso sendto() error, dest=[%s:%d], \
 	nbytes=%d, rv=%d, errno=%d", hostStr, 
@@ -196,11 +196,10 @@ int	main(int argc, char *argv[])
 	LtpVspan		*vspan;
 	PsmAddress		vspanElt;
 	unsigned short		portNbr = 0;
-	unsigned int		ipAddress = 0;
 	unsigned char 		bindIpAddr[sizeof(struct sockaddr_in6)] = {0};
 	unsigned char 		hostAddr[sizeof(struct sockaddr_in6)];
 	int 			domain;
-	char			ownHostName[MAXHOSTNAMELEN];
+	// char			ownHostName[MAXHOSTNAMELEN];
 	struct sockaddr_storage		ownSockName;
 	struct sockaddr_in  *ownInetName;
 	struct sockaddr_in6 *ownInet6Name;
@@ -379,7 +378,7 @@ int	main(int argc, char *argv[])
 		else if (domain == AF_INET6)
 		{
 			char hostStr[INET6_ADDRSTRLEN];
-			inet_ntop(domain, peerInet6Name->sin6_addr, hostStr, INET6_ADDRSTRLEN);
+			inet_ntop(domain, (void *) &peerInet6Name->sin6_addr, hostStr, INET6_ADDRSTRLEN);
 
 			isprintf(memoBuf, sizeof(memoBuf),
 				"[i] udplso is running, spec=[%s:%d], txbps=%d \
@@ -444,10 +443,10 @@ int	main(int argc, char *argv[])
 
 	/*	Create one-use socket for the closing quit byte.	*/
 	// temporarily used
-	struct addrinfo *ownSockAddr, hint, *curr;
+	struct addrinfo *ownSockAddr, hint;
 	bzero(&hint, sizeof(hint));
 	hint.ai_family = domain;
-	int ret = getaddrinfo(ownSockName, NULL, &hint, &ownSockAddr);
+	getaddrinfo(ownSockName, NULL, &hint, &ownSockAddr);
 
 	memset((char *) &ownSockName, 0, sizeof ownSockName);
 	if (domain == AF_INET)
@@ -458,8 +457,8 @@ int	main(int argc, char *argv[])
 		ownInetName = (struct sockaddr_in *) &ownSockName;
 		ownInetName->sin_family = AF_INET;
 		ownInetName->sin_port = portNbr;
-		memcpy((char *) &(ownInetName->sin_addr),
-				(char *) (ownSockAddr->ai_addr)->sin_addr, 4);
+		memcpy(&(ownInetName->sin_addr),
+				(struct sockaddr_in *) (ownSockAddr->ai_addr)->sin_addr, 4);
 		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	}
 	else if (domain == AF_INET6)
@@ -470,8 +469,8 @@ int	main(int argc, char *argv[])
 		ownInet6Name = (struct sockaddr_in6 *) &ownSockName;
 		ownInet6Name->sin6_family = AF_INET6;
 		ownInet6Name->sin6_port = portNbr;
-		memcpy((char *) &(ownInet6Name->sin6_addr.s6_addr),
-				(char *) (ownSockAddr->ai_addr)->sin_addr, 16);
+		memcpy(&(ownInet6Name->sin6_addr.s6_addr),
+				(struct sockaddr_in6 *) (ownSockAddr->ai_addr)->sin_addr, 16);
 		fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	}
 
