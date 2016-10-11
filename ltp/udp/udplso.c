@@ -273,9 +273,10 @@ int	main(int argc, char *argv[])
 		portNbr = LtpUdpDefaultPortNbr;
 	}
 
+	getNameOfHost(ownHostName, sizeof ownHostName);
+
 	// 如果没有找到peer的地址，默认是本地地址
 	// TODO: 获取本机地址
-	// getNameOfHost(ownHostName, sizeof ownHostName);
 	// if (ipAddress == 0)		/*	Default to local host.	*/
 	// {
 	// 	ipAddress = getInternetAddress(ownHostName);
@@ -416,7 +417,7 @@ int	main(int argc, char *argv[])
 		else
 		{
 			bytesSent = sendSegmentByUDP(rtp.linkSocket, segment,
-					segmentLength, peerSockName, domain);
+					segmentLength, &peerSockName, domain);
 			if (bytesSent < segmentLength)
 			{
 				rtp.running = 0;/*	Terminate LSO.	*/
@@ -446,7 +447,7 @@ int	main(int argc, char *argv[])
 	struct addrinfo *ownSockAddr, hint;
 	bzero(&hint, sizeof(hint));
 	hint.ai_family = domain;
-	getaddrinfo(ownSockName, NULL, &hint, &ownSockAddr);
+	getaddrinfo(ownHostName, NULL, &hint, &ownSockAddr);
 
 	memset((char *) &ownSockName, 0, sizeof ownSockName);
 	if (domain == AF_INET)
@@ -458,7 +459,7 @@ int	main(int argc, char *argv[])
 		ownInetName->sin_family = AF_INET;
 		ownInetName->sin_port = portNbr;
 		memcpy(&(ownInetName->sin_addr),
-				(struct sockaddr_in *) (ownSockAddr->ai_addr)->sin_addr, 4);
+				&(((struct sockaddr_in *) (ownSockAddr->ai_addr))->sin_addr), 4);
 		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	}
 	else if (domain == AF_INET6)
@@ -470,7 +471,7 @@ int	main(int argc, char *argv[])
 		ownInet6Name->sin6_family = AF_INET6;
 		ownInet6Name->sin6_port = portNbr;
 		memcpy(&(ownInet6Name->sin6_addr.s6_addr),
-				(struct sockaddr_in6 *) (ownSockAddr->ai_addr)->sin_addr, 16);
+				&(((struct sockaddr_in6 *) (ownSockAddr->ai_addr))->sin6_addr), 16);
 		fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	}
 
