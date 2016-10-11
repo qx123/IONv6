@@ -14,7 +14,7 @@
 
 typedef struct
 {
-	unsigned int	ipAddress = 0;
+	unsigned int	ipAddress;
 	unsigned short	portNbr;
 } UdpTsep;
 
