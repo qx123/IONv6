@@ -48,7 +48,7 @@ static void	*sendBundles(void *parm)
 	BpExtendedCOS		extendedCOS;
 	char			destDuctName[MAX_CL_DUCT_NAME_LEN + 1];
 	unsigned short		portNbr;
-	unsigned int		hostNbr;
+	unsigned int		hostNbr = 0;
 	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	int 				domain;
 	int			failedTransmissions = 0;
@@ -112,7 +112,7 @@ static void	*sendBundles(void *parm)
 		CHKNULL(sdr_begin_xn(sdr));
 		// if (hostNbr == 0)		/*	Can't send it.	*/
 		if ((domain == AF_INET && (unsigned int *) hostAddr == INADDR_ANY)
-			 || (domain == AF_INET6 && memcmp(hostAddr, in6_addr, 16) == 0))
+			 || (domain == AF_INET6 && memcmp(hostAddr, in6addr_any, 16) == 0))
 		{
 			failedTransmissions++;
 			zco_destroy(sdr, bundleZco);
@@ -432,7 +432,9 @@ int	main(int argc, char *argv[])
 	Induct			induct;
 	ClProtocol		protocol;
 	unsigned short		portNbr;
-	unsigned int		hostNbr;
+	unsigned int		hostNbr = 0;
+	unsigned char 	hostAddr[sizeof(struct in6_addr)];
+	int 		domain
 	Dgr			dgrSap;
 	DgrRC			rc;
 	int			running = 1;
@@ -483,7 +485,7 @@ int	main(int argc, char *argv[])
 			sizeof(Induct));
 	sdr_read(sdr, (char *) &protocol, induct.protocol, sizeof(ClProtocol));
 	sdr_exit_xn(sdr);
-	if (parseSocketSpec(ductName, &portNbr, &hostNbr) != 0)
+	if ((domain = parseSocketSpec(ductName, &portNbr, hostAddr)) < 0)
 	{
 		putErrmsg("Can't get IP/port for host.", ductName);
 		return 1;
