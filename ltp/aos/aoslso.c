@@ -69,7 +69,7 @@ int	main(int argc, char *argv[])
 	LtpVspan		*vspan;
 	PsmAddress		vspanElt;
 	unsigned short		portNbr = 0;
-	unsigned int		ipAddress = 0;
+	// unsigned int		ipAddress = 0;
 	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	char			ownHostName[MAXHOSTNAMELEN];
 	int			running = 1;
@@ -132,10 +132,10 @@ int	main(int argc, char *argv[])
 		portNbr = LtpAosDefaultPortNbr;
 	}
 
+	getNameOfHost(ownHostName, sizeof ownHostName);
 	// TODO: 获取本机地址
 	// if (ipAddress == 0)		/*	Default to local host.	*/
 	// {
-	// 	getNameOfHost(ownHostName, sizeof ownHostName);
 	// 	ipAddress = getInternetAddress(ownHostName);
 	// }
 
