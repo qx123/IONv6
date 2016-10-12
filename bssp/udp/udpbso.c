@@ -124,7 +124,7 @@ static void	*handleDatagrams(void *parm)
 /*	*	*	Main thread functions	*	*	*	*/
 
 int	sendBlockByUDP(int linkSocket, char *from, int length,
-		struct sockaddr_storage *destAddr, int domain )
+		struct sockaddr *destAddr, int domain )
 {
 	int	bytesWritten;
 
@@ -194,7 +194,7 @@ int	main(int argc, char *argv[])
 	char			ownHostName[MAXHOSTNAMELEN];
 	struct sockaddr_storage		ownSockName;
 	struct sockaddr_in	*ownInetName;
-	struct sockaddr_in6	*ownInetName;
+	struct sockaddr_in6	*ownInet6Name;
 	struct sockaddr_storage		bindSockName;
 	struct sockaddr_in	*bindInetName;
 	struct sockaddr_in6	*bindInet6Name;
@@ -407,7 +407,7 @@ int	main(int argc, char *argv[])
 		else
 		{
 			bytesSent = sendBlockByUDP(rtp.linkSocket, block,
-					blockLength, peerSockName, domain);
+					blockLength, (struct sockaddr *) &peerSockName, domain);
 			if (bytesSent < blockLength)
 			{
 				rtp.running = 0;/*	Terminate BSO.	*/
