@@ -313,7 +313,7 @@ int	main(int argc, char *argv[])
 	BsspVdb			*vdb;
 	char			*hostName;
 	unsigned short		portNbr;
-	unsigned int		hostNbr;
+	// unsigned int		hostNbr;
 	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	AccessThreadParms	atp;
 	socklen_t		nameLength;
@@ -428,14 +428,14 @@ int	main(int argc, char *argv[])
 {
     char    txt[500];
 
-    if (domain == AF_INET)
+    if (atp.domain == AF_INET)
     {
         isprintf(txt, sizeof(txt),
            "[i] tcpbsi is running, spec=[%s:%d].", 
 			inet_ntoa(atp.inetName->sin_addr), ntohs(portNbr));
         writeMemo(txt);
     }
-    else if (domain == AF_INET6)
+    else if (atp.domain == AF_INET6)
     {
         char hostStr[INET6_ADDRSTRLEN];
         inet_ntop(atp.domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
