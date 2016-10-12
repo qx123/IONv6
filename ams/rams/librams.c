@@ -538,7 +538,7 @@ int	rams_run(char *mibSource, char *tsorder, char *applicationName,
 	unsigned short		portNbr;
 	unsigned int		ipAddress;
 	unsigned char		hostAddr[sizeof(struct in6_addr)];
-	int					domain;
+	// int					domain;
 	struct sockaddr		socketName;
 	struct sockaddr_in	*inetName = (struct sockaddr_in *) &socketName;
 	socklen_t		nameLength;
@@ -752,7 +752,8 @@ printf("bp_open succeeds.\n");
 		}
 
 		istrcpy(gwEid, ownMsgspace->gwEid, sizeof gwEid);
-		domain = parseSocketSpec(gwEid, &portNbr, hostAddr);
+		// domain = parseSocketSpec(gwEid, &portNbr, hostAddr);
+		parseSocketSpec(gwEid, &portNbr, hostAddr);
 		portNbr = htons(portNbr);
 		ipAddress = htonl(ipAddress);
 		memset((char *) &socketName, 0, sizeof socketName);
