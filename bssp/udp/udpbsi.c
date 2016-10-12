@@ -109,7 +109,7 @@ int	main(int argc, char *argv[])
 	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
 	struct sockaddr_in6	*inet6Name;
-	int 				domain;
+	int 				domain = AF_INET6;
 	ReceiverThreadParms	rtp;
 	socklen_t		nameLength;
 	pthread_t		receiverThread;
