@@ -301,7 +301,7 @@ int	main(int argc, char *argv[])
 	ClProtocol		protocol;
 	char			*hostName;
 	unsigned short		portNbr;
-	unsigned int		hostNbr;
+	// unsigned int		hostNbr;
     unsigned char       hostAddr[sizeof(struct in6_addr)];
 	AccessThreadParms	atp;
 	socklen_t		nameLength;
@@ -369,7 +369,7 @@ int	main(int argc, char *argv[])
     else if (atp.domain == AF_INET6)
     {
         atp.inet6Name = (struct sockaddr_in6 *) &(atp.socketName);
-        atp.inet6Name->sin_6family = AF_INET6;
+        atp.inet6Name->sin6_family = AF_INET6;
         atp.inet6Name->sin6_port = portNbr;
         memcpy((char *) &(atp.inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
         atp.ductSocket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
@@ -425,14 +425,14 @@ int	main(int argc, char *argv[])
 	{
 		char    txt[500];
 
-		if (domain == AF_INET)
+		if (atp.domain == AF_INET)
 		{
 			isprintf(txt, sizeof(txt),
 				"[i] stcpcli is running, spec=[%s:%d].", 
 				inet_ntoa(atp.inetName->sin_addr), ntohs(portNbr));
 			writeMemo(txt);
 		}
-		else if (domain == AF_INET6)
+		else if (atp.domain == AF_INET6)
 		{
 			char hostStr[INET6_ADDRSTRLEN];
 			inet_ntop(atp.domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
