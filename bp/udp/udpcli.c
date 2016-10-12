@@ -41,7 +41,6 @@ static void	*handleDatagrams(void *parm)
 	int			bundleLength;
 	struct sockaddr_in	fromAddr;
 	unsigned int		hostNbr;
-    unsigned char       *hostAddr;
 	char			hostName[MAXHOSTNAMELEN + 1];
 
 	snooze(1);	/*	Let main thread become interruptible.	*/
@@ -204,16 +203,15 @@ int	main(int argc, char *argv[])
         inetName->sin_family = AF_INET;
         inetName->sin_port = portNbr;
         memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
-        rtp.ductSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     }
     else if (domain == AF_INET6)
     {
         inet6Name = (struct sockaddr_in6 *) &socketName;
-        inetName->sin6_family = AF_INET6;
-        inetName->sin6_port = portNbr;
+        inet6Name->sin6_family = AF_INET6;
+        inet6Name->sin6_port = portNbr;
         memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
-        rtp.ductSocket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
     }
+	rtp.ductSocket = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 	nameLength = sizeof(struct sockaddr_storage);
 	if (rtp.ductSocket < 0)
 	{
