@@ -146,23 +146,6 @@ int	main(int argc, char *argv[])
         if (domain == AF_INET)
         {
             inetName = (struct sockaddr_in *) &socketName;
-            pHostNbr = &hostNbr;
-            memcpy((char *) pHostNbr, (char *) hostAddr, 4);
-            if (hostNbr == 0)	/*	Can't send bundle.	*/
-            {
-                writeMemoNote("[?] Can't get IP address for host",
-                        destDuctName);
-                CHKZERO(sdr_begin_xn(sdr));
-                zco_destroy(sdr, bundleZco);
-                if (sdr_end_xn(sdr) < 0)
-                {
-                    putErrmsg("Can't destroy ZCO reference.", NULL);
-                    sm_SemEnd(udpcloSemaphore(NULL));
-                }
-
-                continue;
-            }
-			
             inetName->sin_family = AF_INET;
             inetName->sin_port = portNbr;
             memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
@@ -170,38 +153,27 @@ int	main(int argc, char *argv[])
         else if (domain == AF_INET6)
         {
             inet6Name = (struct sockaddr_in6 *) &socketName;
-            pHostNbr = &hostNbr;
-            memcpy((char *) pHostNbr, (char *) hostAddr, 4);
-            // if ((struct in6_addr *) hostAddr == in6addr_any)	/*	Can't send bundle.	*/
-			char flag = 0;
-			int i;
-			for (i = 0; i < sizeof(struct in6_addr); i++)
-			{
-				if (hostAddr[i] != 0)
-				{
-					flag = 1;
-					break;
-				}
-			}
-			if (!flag)
-            {
-                writeMemoNote("[?] Can't get IP address for host",
-                        destDuctName);
-                CHKZERO(sdr_begin_xn(sdr));
-                zco_destroy(sdr, bundleZco);
-                if (sdr_end_xn(sdr) < 0)
-                {
-                    putErrmsg("Can't destroy ZCO reference.", NULL);
-                    sm_SemEnd(udpcloSemaphore(NULL));
-                }
-
-                continue;
-            }
-
             inet6Name->sin6_family = AF_INET6;
             inet6Name->sin6_port = portNbr;
             memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
         }
+		
+		// if (hostNbr == 0)	/*	Can't send bundle.	*/
+		if ((domain == AF_INET && (unsigned int *) hostAddr == INADDR_ANY)
+			|| (domain == AF_INET6 && memcmp(hostAddr, &in6addr_any, 16) == 0))
+		{
+			writeMemoNote("[?] Can't get IP address for host",
+					destDuctName);
+			CHKZERO(sdr_begin_xn(sdr));
+			zco_destroy(sdr, bundleZco);
+			if (sdr_end_xn(sdr) < 0)
+			{
+				putErrmsg("Can't destroy ZCO reference.", NULL);
+				sm_SemEnd(udpcloSemaphore(NULL));
+			}
+
+			continue;
+		}
 
 		CHKZERO(sdr_begin_xn(sdr));
 		bundleLength = zco_length(sdr, bundleZco);
