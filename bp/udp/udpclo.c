@@ -52,7 +52,6 @@ int	main(int argc, char *argv[])
 	int			i;
     int         domain;
 	unsigned short		portNbr;
-	unsigned int		hostNbr, *pHostNbr;
     unsigned char       hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
