@@ -156,7 +156,7 @@ int	sendBlockByUDP(int linkSocket, char *from, int length,
 				{
 					struct sockaddr_in6	*saddr = (struct sockaddr_in6 *) destAddr;
 					char hostStr[INET6_ADDRSTRLEN];
-					inet_ntop(domain, saddr->sin6_addr, hostStr, INET6_ADDRSTRLEN);
+					inet_ntop(domain, &(saddr->sin6_addr), hostStr, INET6_ADDRSTRLEN);
 					isprintf(memoBuf, sizeof(memoBuf),
 						"udpbso sendto() error, dest=[%s:%d], \
 	nbytes=%d, rv=%d, errno=%d", hostStr, 
@@ -188,7 +188,7 @@ int	main(int argc, char *argv[])
 	BsspVspan		*vspan;
 	PsmAddress		vspanElt;
 	unsigned short		portNbr = 0;
-	unsigned int		ipAddress = 0;
+	// unsigned int		ipAddress = 0;
 	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	unsigned char 		bindIpAddr[sizeof(struct sockaddr_in6)] = {0};
 	char			ownHostName[MAXHOSTNAMELEN];
@@ -448,8 +448,8 @@ int	main(int argc, char *argv[])
 		ownInetName = (struct sockaddr_in *) &ownSockName;
 		ownInetName->sin_family = AF_INET;
 		ownInetName->sin_port = portNbr;
-		memcpy((char *) &(ownInetName->sin_addr),
-				(char *) (ownSockAddr->ai_addr)->sin_addr, 4);
+		memcpy(&(ownInetName->sin_addr),
+				&(((struct sockaddr_in *) (ownSockAddr->ai_addr))->sin_addr), 4);
 	}
 	else if (domain == AF_INET6)
 	{
