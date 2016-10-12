@@ -112,7 +112,7 @@ static void	*sendBundles(void *parm)
 		CHKNULL(sdr_begin_xn(sdr));
 		// if (hostNbr == 0)		/*	Can't send it.	*/
 		if ((domain == AF_INET && (unsigned int *) hostAddr == INADDR_ANY)
-			 || (domain == AF_INET6 && memcmp(hostAddr, in6addr_any, 16) == 0))
+			 || (domain == AF_INET6 && memcmp(hostAddr, &in6addr_any, 16) == 0))
 		{
 			failedTransmissions++;
 			zco_destroy(sdr, bundleZco);
@@ -434,7 +434,7 @@ int	main(int argc, char *argv[])
 	unsigned short		portNbr;
 	unsigned int		hostNbr = 0;
 	unsigned char 	hostAddr[sizeof(struct in6_addr)];
-	int 		domain
+	int 		domain;
 	Dgr			dgrSap;
 	DgrRC			rc;
 	int			running = 1;
