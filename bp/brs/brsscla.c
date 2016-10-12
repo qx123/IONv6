@@ -749,14 +749,14 @@ static int	run_brsscla(char *ductName, int baseDuctNbr, int lastDuctNbr,
 	portNbr = htons(portNbr);
 	atp.vduct = vinduct;
 	memset((char *) &(atp.socketName), 0, sizeof(struct sockaddr));
-    if (domain == AF_INET)
+    if (atp.domain == AF_INET)
     {
         atp.inetName = (struct sockaddr_in *) &(atp.socketName);
         atp.inetName->sin_family = AF_INET;
         atp.inetName->sin_port = portNbr;
         memcpy((char *) &(atp.inetName->sin_addr.s_addr), (char *) hostAddr, 4);
     }
-    else if (domain == AF_INET6)
+    else if (atp.domain == AF_INET6)
     {
         atp.inet6Name = (struct sockaddr_in6 *) &(atp.socketName);
         atp.inet6Name->sin6_family = AF_INET6;
@@ -846,7 +846,7 @@ port 80)", NULL);
 		else if (domain == AF_INET6)
 		{
 			char hostStr[INET6_ADDRSTRLEN];
-			inet_ntop(apt.domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
+			inet_ntop(atp.domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
 
 			isprintf(txt, sizeof(txt),
 				"[i] brsscla is running, spec=[%s:%d].", 
