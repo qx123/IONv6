@@ -102,7 +102,7 @@ int	main(int argc, char *argv[])
 	unsigned short		portNbr = 0;
 	// unsigned int		ipAddress = 0;
 	unsigned char 		hostAddr[sizeof(struct in6_addr)];
-	struct sockaddr		socketName;
+	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
 	struct sockaddr_in6 *inet6Name;
 	int 				domain;
