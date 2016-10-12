@@ -130,6 +130,7 @@ int	main(int argc, char *argv[])
 	}
 
 	/*	All command-line arguments are now validated.		*/
+	bzero(hostAddr, sizeof(struct in6_addr));
 
 	if (endpointSpec)
 	{
