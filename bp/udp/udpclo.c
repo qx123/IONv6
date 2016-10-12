@@ -172,7 +172,18 @@ int	main(int argc, char *argv[])
             inet6Name = (struct sockaddr_in6 *) &socketName;
             pHostNbr = &hostNbr;
             memcpy((char *) pHostNbr, (char *) hostAddr, 4);
-            if ((struct in6_addr *) hostAddr == in6addr_any)	/*	Can't send bundle.	*/
+            // if ((struct in6_addr *) hostAddr == in6addr_any)	/*	Can't send bundle.	*/
+			char flag = 0;
+			int i;
+			for (i = 0; i < sizeof(struct in6_addr); i++)
+			{
+				if (hostAddr[i] != 0)
+				{
+					flag = 1;
+					break;
+				}
+			}
+			if (!flag)
             {
                 writeMemoNote("[?] Can't get IP address for host",
                         destDuctName);
