@@ -143,7 +143,7 @@ int	sendBlockByUDP(int linkSocket, char *from, int length,
 				char			memoBuf[1000];
 				if (domain ==  AF_INET)
 				{
-					struct sockaddr_in	*saddr = destAddr;
+					struct sockaddr_in	*saddr = (struct sockaddr_in *) destAddr;
 
 					isprintf(memoBuf, sizeof(memoBuf),
 						"udpbso sendto() error, dest=[%s:%d], \
@@ -154,7 +154,7 @@ int	sendBlockByUDP(int linkSocket, char *from, int length,
 				}
 				else if (domain == AF_INET6)
 				{
-					struct sockaddr_in6	*saddr = destAddr;
+					struct sockaddr_in6	*saddr = (struct sockaddr_in6 *) destAddr;
 					char hostStr[INET6_ADDRSTRLEN];
 					inet_ntop(domain, saddr->sin6_addr, hostStr, INET6_ADDRSTRLEN);
 					isprintf(memoBuf, sizeof(memoBuf),
@@ -266,8 +266,8 @@ int	main(int argc, char *argv[])
 		portNbr = BsspUdpDefaultPortNbr;
 	}
 
+	getNameOfHost(ownHostName, sizeof ownHostName);
 	// TODO: 获取本机地址
-	// getNameOfHost(ownHostName, sizeof ownHostName);
 	// if (ipAddress == 0)		/*	Default to local host.	*/
 	// {
 	// 	ipAddress = getInternetAddress(ownHostName);
@@ -369,11 +369,11 @@ int	main(int argc, char *argv[])
 		else if (domain == AF_INET6)
 		{
 			char hostStr[INET6_ADDRSTRLEN];
-			inet_ntop(domain, peerInet6Name->sin6_addr, hostStr, INET6_ADDRSTRLEN);
+			inet_ntop(domain, &peerInet6Name->sin6_addr, hostStr, INET6_ADDRSTRLEN);
 			isprintf(memoBuf, sizeof(memoBuf),
 				"[i] udpbso is running, spec=[%s:%d], txbps=%d \
 (0=unlimited), rengine=%d.", hostStr, 
-				ntohs(saddr->sin6_port), 
+				ntohs(portNbr), 
 				txbps, (int) remoteEngineId);
 			writeMemo(memoBuf);
 		}
@@ -434,10 +434,10 @@ int	main(int argc, char *argv[])
 
 	/*	Create one-use socket for the closing quit byte.	*/
 
-	struct addrinfo *ownSockAddr, hint, *curr;
+	struct addrinfo *ownSockAddr, hint;
 	bzero(&hint, sizeof(hint));
 	hint.ai_family = domain;
-	int ret = getaddrinfo(ownSockName, NULL, &hint, &ownSockAddr);
+	getaddrinfo(ownHostName, NULL, &hint, &ownSockAddr);
 
 	memset((char *) &ownSockName, 0, sizeof ownSockName);
 	if (domain == AF_INET)
@@ -445,25 +445,24 @@ int	main(int argc, char *argv[])
 		portNbr = bindInetName->sin_port;	/*	From binding.	*/
 		// ipAddress = getInternetAddress(ownHostName);
 		// ipAddress = htonl(ipAddress);
-		struct sockaddr_in *ownInetName = (struct sockaddr_in *) &ownSockName;
+		ownInetName = (struct sockaddr_in *) &ownSockName;
 		ownInetName->sin_family = AF_INET;
 		ownInetName->sin_port = portNbr;
 		memcpy((char *) &(ownInetName->sin_addr),
 				(char *) (ownSockAddr->ai_addr)->sin_addr, 4);
-		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	}
 	else if (domain == AF_INET6)
 	{
 		portNbr = bindInet6Name->sin6_port;	/*	From binding.	*/
 		// ipAddress = getInternetAddress(ownHostName);
 		// ipAddress = htonl(ipAddress);
-		struct sockaddr_in6 * ownInet6Name = (struct sockaddr_in6 *) &ownSockName;
+		ownInet6Name = (struct sockaddr_in6 *) &ownSockName;
 		ownInet6Name->sin6_family = AF_INET6;
 		ownInet6Name->sin6_port = portNbr;
-		memcpy((char *) &(ownInet6Name->sin6_addr.s6_addr),
-				(char *) (ownSockAddr->ai_addr)->sin_addr, 16);
-		fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+		memcpy(&(ownInet6Name->sin6_addr.s6_addr),
+				&(((struct sockaddr_in6 *) (ownSockAddr->ai_addr))->sin6_addr), 16);
 	}
+	fd = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 
 	/*	Wake up the receiver thread by sending it a 1-byte
 	 *	datagram.						*/

@@ -125,14 +125,14 @@ static void	*handleDatagrams(void *parm)
 /*	*	*	Main thread functions	*	*	*	*/
 
 int	sendSegmentByUDP(int linkSocket, char *from, int length,
-		struct sockaddr_storage *destAddr, int domain)
+		struct sockaddr *destAddr, int domain)
 {
 	int	bytesWritten;
 
 	while (1)	/*	Continue until not interrupted.		*/
 	{
 		bytesWritten = isendto(linkSocket, from, length, 0,
-				(struct sockaddr *) destAddr,
+				destAddr,
 				sizeof(struct sockaddr_storage));
 		if (bytesWritten < 0)
 		{
@@ -417,7 +417,7 @@ int	main(int argc, char *argv[])
 		else
 		{
 			bytesSent = sendSegmentByUDP(rtp.linkSocket, segment,
-					segmentLength, &peerSockName, domain);
+					segmentLength, (struct sockaddr *) &peerSockName, domain);
 			if (bytesSent < segmentLength)
 			{
 				rtp.running = 0;/*	Terminate LSO.	*/
