@@ -147,7 +147,6 @@ int	main(int argc, char *argv[])
 		inetName->sin_family = AF_INET;
 		inetName->sin_port = portNbr;
 		memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
-		linkSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	}
 	if (domain == AF_INET6)
 	{
@@ -155,8 +154,8 @@ int	main(int argc, char *argv[])
 		inet6Name->sin6_family = AF_INET6;
 		inet6Name->sin6_port = portNbr;
 		memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
-		linkSocket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	}
+	linkSocket = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 	if (linkSocket < 0)
 	{
 		putSysErrmsg("LSO can't open AOS socket", NULL);
