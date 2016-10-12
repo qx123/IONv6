@@ -2612,8 +2612,7 @@ int	main(int argc, char *argv[])
 	VInduct			*vduct;
 	PsmAddress		vductElt;
 	unsigned short		portNbr;
-	unsigned int		hostNbr;
-	unsigned int		*pHostNbr;
+	// unsigned int		hostNbr;
 	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
@@ -2809,7 +2808,7 @@ int	main(int argc, char *argv[])
 	/*	Time to shut down.					*/
 
 	stp.running = 0;
-	wakeUpServerThread(&socketName);
+	wakeUpServerThread((struct sockaddr *) &socketName);
 	pthread_join(serverThread, NULL);
 	shutDownNeighbors(neighbors);
 	snooze(2);		/*	Let clock thread clean up.	*/
