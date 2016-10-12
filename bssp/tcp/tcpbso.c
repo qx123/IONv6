@@ -110,7 +110,7 @@ int	main(int argc, char *argv[])
 	PsmAddress		vspanElt;
 	char			*hostName;
 	unsigned short		portNbr;
-	unsigned int		hostNbr;
+	// unsigned int		hostNbr;
 	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
@@ -168,7 +168,9 @@ engine number>");
 	}
 
 	portNbr = htons(portNbr);
-	if (hostNbr == 0)
+	// if (hostNbr == 0)
+	if ((domain == AF_INET && (unsigned int *) hostAddr == INADDR_ANY)
+		|| (domain == AF_INET6 && memcmp(hostAddr, &in6addr_any, 16) == 0))
 	{
 		putErrmsg("Can't get IP address for host.", hostName);
 		return -1;
