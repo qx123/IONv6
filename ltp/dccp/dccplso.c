@@ -165,7 +165,7 @@ typedef struct {
 	int 			active;
 	int				linksocket;
 	struct sockaddr_storage	socketName;
-	int				domain = AF_INET;
+	int				domain;
 	int				MPS;
 	int 			done;
 	pthread_mutex_t	mutex;
