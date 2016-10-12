@@ -78,7 +78,7 @@ static void	*sendKeepalives(void *parm)
 
 		count = 0;
 		pthread_mutex_lock(parms->mutex);
-		bytesSent = sendBlockByTCP(parms->socketName,
+		bytesSent = sendBlockByTCP((struct sockaddr *) &(parms->socketName),
 				parms->flowSocket, 0, NULL);
 		pthread_mutex_unlock(parms->mutex);
 		if (bytesSent < 0)
