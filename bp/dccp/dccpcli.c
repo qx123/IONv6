@@ -425,7 +425,7 @@ int	main(int argc, char *argv[])
     }
 
 	rtp.vduct=vduct;
-	if (bindDCCPsock(&rtp.linkSocket, (struct sockaddr *) &socketName) < 0)
+	if (bindDCCPsock(&rtp.linkSocket, (struct sockaddr *) &socketName, domain) < 0)
 	{
 		close(rtp.linkSocket);
 		return 1;
