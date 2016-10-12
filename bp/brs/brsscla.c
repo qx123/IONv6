@@ -836,14 +836,14 @@ port 80)", NULL);
 	{
 		char    txt[500];
 
-		if (domain == AF_INET)
+		if (atp.domain == AF_INET)
 		{
 			isprintf(txt, sizeof(txt),
 				"[i] brsscla is running, spec=[%s:%d].",  
 				inet_ntoa(atp.inetName->sin_addr), ntohs(portNbr));
 			writeMemo(txt);
 		}
-		else if (domain == AF_INET6)
+		else if (atp.domain == AF_INET6)
 		{
 			char hostStr[INET6_ADDRSTRLEN];
 			inet_ntop(atp.domain, hostAddr, hostStr, INET6_ADDRSTRLEN);
