@@ -104,7 +104,7 @@ int	main(int argc, char *argv[])
 #endif
 	BsspVdb			*vdb;
 	unsigned short		portNbr = 0;
-	unsigned int		ipAddress = INADDR_ANY;
+	// unsigned int		ipAddress = INADDR_ANY;
 	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
