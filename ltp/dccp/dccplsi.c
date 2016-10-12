@@ -335,7 +335,6 @@ int	main(int argc, char *argv[])
 #endif
 	LtpVdb			*vdb;
 	unsigned short		portNbr = 0;
-	unsigned int		ipAddress = 0;
 	unsigned char 		hostAddr[sizeof(struct in6_addr)];
 	struct sockaddr_storage		socketName;
 	struct sockaddr_in *inetName;
