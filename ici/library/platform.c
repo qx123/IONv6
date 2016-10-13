@@ -3352,15 +3352,8 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
     {
         inetName = (struct sockaddr_in *)&socketName;
         memcpy((char *) pHostNbr, (char *) hostAddr, 4);
-    
-        if (hostNbr == 0)
-        {
-            putErrmsg("Can't get IP address for host.", socketSpec);
-            return 0;
-        }
-
-
         // printDottedString(hostNbr, dottedString);
+		// TODO: v6 isprintf
         isprintf(socketTag, sizeof socketTag, "%s:%hu", dottedString, portNbr);
         // hostNbr = htonl(hostNbr);
         portNbr = htons(portNbr);
@@ -3378,6 +3371,13 @@ int	itcp_connect(char *socketSpec, unsigned short defaultPort, int *sock)
         inet6Name->sin6_port = portNbr;
         memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
     }
+	// if (hostNbr == 0)
+	if ((domain == AF_INET && (unsigned int *) hostAddr == INADDR_ANY)
+		|| (domain == AF_INET6 && memcmp(hostAddr, &in6addr_any, 16) == 0))
+	{
+		putErrmsg("Can't get IP address for host.", socketSpec);
+		return 0;
+	}
 	*sock = socket(domain, SOCK_STREAM, IPPROTO_TCP);
 
 	if (*sock < 0)
