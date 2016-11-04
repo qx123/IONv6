@@ -197,8 +197,8 @@ int	main(int argc, char *argv[])
 	PsmAddress		vspanElt;
 	unsigned short		portNbr = 0;
 	unsigned char 		bindIpAddr[sizeof(struct sockaddr_in6)] = {0};
-	unsigned char 		hostAddr[sizeof(struct sockaddr_in6)];
-	int 			domain;
+	unsigned char 		hostAddr[sizeof(struct sockaddr_in6)]={0};
+	int 			domain=AF_INT6;
 	char			ownHostName[MAXHOSTNAMELEN];
 	struct sockaddr_storage		ownSockName;
 	struct sockaddr_in  *ownInetName;
@@ -277,11 +277,10 @@ int	main(int argc, char *argv[])
 
 	// 如果没有找到peer的地址，默认是本地地址
 	// TODO: 获取本机地址
-	// if (ipAddress == 0)		/*	Default to local host.	*/
-	// {
-	// 	ipAddress = getInternetAddress(ownHostName);
-	// }
-
+	// if ((domain == AF_INET && (unsigned int *) hostAddr
+    // ==INADDR_ANY)|| (domain == AF_INET6 && memcmp(hostAddr,
+    // &in6addr_any, 16)== 0)) 
+    // {getInternetAddress(ownHostName,hostAddr,domain);}		/*	Default to local host.	*/
 	portNbr = htons(portNbr);
 	memset((char *) &peerSockName, 0, sizeof peerSockName);
 	if (domain == AF_INET)
@@ -453,7 +452,10 @@ int	main(int argc, char *argv[])
 	if (domain == AF_INET)
 	{
 		portNbr = bindInetName->sin_port;	/*	From binding.	*/
-		// ipAddress = getInternetAddress(ownHostName);
+		//if ((domain == AF_INET && (unsigned int *) hostAddr
+        //==INADDR_ANY)|| (domain == AF_INET6 && memcmp(hostAddr,
+        //&in6addr_any, 16)== 0)) 
+        //{getInternetAddress(ownHostName,hostAddr,domain);}
 		// ipAddress = htonl(ipAddress);
 		ownInetName = (struct sockaddr_in *) &ownSockName;
 		ownInetName->sin_family = AF_INET;
@@ -464,7 +466,10 @@ int	main(int argc, char *argv[])
 	else if (domain == AF_INET6)
 	{
 		portNbr = bindInet6Name->sin6_port;	/*	From binding.	*/
-		// ipAddress = getInternetAddress(ownHostName);
+		// if ((domain == AF_INET && (unsigned int *) hostAddr
+        // ==INADDR_ANY)|| (domain == AF_INET6 && memcmp(hostAddr,
+        // &in6addr_any, 16)== 0)) 
+        // {getInternetAddress(ownHostName,hostAddr,domain);}
 		// ipAddress = htonl(ipAddress);
 		ownInet6Name = (struct sockaddr_in6 *) &ownSockName;
 		ownInet6Name->sin6_family = AF_INET6;

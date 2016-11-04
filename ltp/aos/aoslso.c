@@ -70,7 +70,7 @@ int	main(int argc, char *argv[])
 	PsmAddress		vspanElt;
 	unsigned short		portNbr = 0;
 	// unsigned int		ipAddress = 0;
-	unsigned char 		hostAddr[sizeof(struct in6_addr)];
+    unsigned char 		hostAddr[sizeof(struct in6_addr)]={0};
 	char			ownHostName[MAXHOSTNAMELEN];
 	int			running = 1;
 	int			segmentLength;
@@ -78,7 +78,7 @@ int	main(int argc, char *argv[])
 	struct sockaddr_storage		socketName;
 	struct sockaddr_in	*inetName;
 	struct sockaddr_in6 *inet6Name;
-	int 		domain;
+	int 		domain=AF_INET6;
 	int			linkSocket;
 	int			bytesSent = 0;
 
@@ -134,9 +134,12 @@ int	main(int argc, char *argv[])
 
 	getNameOfHost(ownHostName, sizeof ownHostName);
 	// TODO: 获取本机地址
-	// if (ipAddress == 0)		/*	Default to local host.	*/
+	// if ((domain == AF_INET && (unsigned int *) hostAddr ==
+    // INADDR_ANY)
+    //     || (domain == AF_INET6 && memcmp(hostAddr, &in6addr_any, 16)
+    //     == 0))		/*	Default to local host.	*/
 	// {
-	// 	ipAddress = getInternetAddress(ownHostName);
+    // 	getInternetAddress(ownHostName,hostAddr,domain);
 	// }
 
 	portNbr = htons(portNbr);
@@ -149,12 +152,6 @@ int	main(int argc, char *argv[])
 		memcpy((char *) &(inetName->sin_addr.s_addr), (char *) hostAddr, 4);
 	}
 	if (domain == AF_INET6)
-	{
-		inet6Name = (struct sockaddr_in6 *) &socketName;
-		inet6Name->sin6_family = AF_INET6;
-		inet6Name->sin6_port = portNbr;
-		memcpy((char *) &(inet6Name->sin6_addr.s6_addr), (char *) hostAddr, 16);
-	}
 	linkSocket = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 	if (linkSocket < 0)
 	{
